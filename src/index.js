@@ -3,6 +3,6 @@
 const { runColony } = require('./loop');
 
 // Your research goal goes here
-const goal = "What are the most promising breakthroughs in solid-state battery technology and what is preventing mass adoption?";
+const goal = "Identify contradictions and understudied gaps in lithium-sulfur battery research from papers published between 2023 and 2025";
 
 runColony(goal).catch(console.error);

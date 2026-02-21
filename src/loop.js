@@ -24,7 +24,7 @@ async function runColony(goal) {
   await synthesize(goal);
 }
 
-async function recursiveLoop(thread, goal) {
+async function recursiveLoop(thread, goal, depth = 0) {
   iterationCount++;
   
   if (iterationCount > MAX_ITERATIONS) {
@@ -32,7 +32,7 @@ async function recursiveLoop(thread, goal) {
     return;
   }
 
-  console.log(`\n🔍 [EXPLORER] Researching thread: "${thread}"`);
+  console.log(`\n🔍 [EXPLORER] Researching thread: "${thread}" (depth ${depth})`);
   const finding = await explore(thread, goal);
   console.log(`\n📄 Finding:\n${finding}`);
   
@@ -46,10 +46,11 @@ async function recursiveLoop(thread, goal) {
                          verdict.toLowerCase().includes('investigate further') ||
                          verdict.toLowerCase().includes('contradicts');
 
-  if (needsDeeperDig) {
-    console.log(`\n🔄 [LOOP] Critic flagged gaps — going deeper on: "${thread}"`);
-    const deeperThread = `Deeper investigation: ${thread} — focus on gaps identified by critic`;
-    await recursiveLoop(deeperThread, goal);
+  if (needsDeeperDig && depth < 2) {
+    console.log(`\n🔄 [LOOP] Critic flagged gaps — going deeper on: "${thread}" (depth ${depth} → ${depth + 1})`);
+    await recursiveLoop(thread, goal, depth + 1);
+  } else if (needsDeeperDig) {
+    console.log(`\n⚠️  [LOOP] Depth limit (2) reached for thread: "${thread}" — stopping recursion`);
   } else {
     console.log(`\n✅ [LOOP] Thread resolved: "${thread}"`);
   }
