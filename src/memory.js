@@ -27,7 +27,7 @@ function extractDomainTags(thread) {
 }
 
 function saveFinding(finding) {
-  const { thread, finding: fullFinding, verdict, runId } = finding;
+  const { thread, finding: fullFinding, verdict, runId, citations } = finding;
   const findingSummary = typeof fullFinding === 'string' ? fullFinding.slice(0, 500) : String(fullFinding).slice(0, 500);
   const confidenceScore = extractConfidence(verdict, fullFinding);
   const domainTags = extractDomainTags(thread);
@@ -41,6 +41,7 @@ function saveFinding(finding) {
     domainTags,
     timestamp,
     runId,
+    sources: Array.isArray(citations) ? citations : [],
   };
 
   ensureDataDir();

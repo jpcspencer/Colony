@@ -54,9 +54,20 @@ async function recursiveLoop(thread, goal, depth = 0, runId = null) {
     return;
   }
 
+  const { queryMemory } = require('./memory');
+  const priorFindings = queryMemory(thread);
+  if (priorFindings.length > 0) {
+    console.log(`📚 [MEMORY] Injecting ${priorFindings.length} prior finding(s) for thread: "${thread}"`);
+  }
   console.log(`\n🔍 [EXPLORER] Researching thread: "${thread}" (depth ${depth})`);
-  const finding = await explore(thread, goal);
+  const result = await explore(thread, goal, priorFindings);
+  const finding = result.text;
+  const citations = result.citations || [];
+  console.log(`📎 [MEMORY] Citations received in loop: ${citations.length}`);
   console.log(`\n📄 Finding:\n${finding}`);
+  if (citations.length > 0) {
+    console.log(`📎 [MEMORY] ${citations.length} citation(s) preserved for this thread`);
+  }
   
   console.log(`\n⚖️  [CRITIC] Evaluating...`);
   const verdict = await critique(thread, finding, goal);
@@ -65,7 +76,7 @@ async function recursiveLoop(thread, goal, depth = 0, runId = null) {
   colonyMemory.push({ thread, finding, verdict, iteration: iterationCount });
 
   if (runId) {
-    saveFinding({ thread, finding, verdict, runId });
+    saveFinding({ thread, finding, verdict, citations, runId });
   }
 
   const needsDeeperDig = verdict.toLowerCase().includes('insufficient') || 
@@ -87,9 +98,9 @@ async function seed(goal) {
   return await seeder(goal, client);
 }
 
-async function explore(thread, goal) {
+async function explore(thread, goal, priorFindings = []) {
   const { explorer } = require('./agents/explorer');
-  return await explorer(thread, goal, colonyMemory, client);
+  return await explorer(thread, goal, colonyMemory, client, priorFindings);
 }
 
 async function critique(thread, finding, goal) {

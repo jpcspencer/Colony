@@ -83,11 +83,30 @@ async function arxivSearch(thread, goal) {
   }
 }
 
-async function explorer(thread, goal, memory, client) {
+function extractCitations(searchResults, arxivPapers) {
+  const citations = [];
+  if (searchResults) {
+    for (const r of searchResults) {
+      if (r.url) citations.push({ title: r.title, url: r.url, source: 'web' });
+    }
+  }
+  if (arxivPapers) {
+    for (const p of arxivPapers) {
+      if (p.url) citations.push({ title: p.title, url: p.url, source: 'arxiv' });
+    }
+  }
+  return citations;
+}
+
+async function explorer(thread, goal, memory, client, priorFindings = []) {
   console.log(`[WEB SEARCH] Searching for: ${thread}`);
 
-  const priorFindings = memory.length > 0
-    ? `\n\nPrior colony findings for context:\n${memory.map(m => `- ${m.thread}: ${m.finding.slice(0, 200)}...`).join('\n')}`
+  const sessionContext = memory.length > 0
+    ? `\n\nPRIOR FINDINGS THIS SESSION:\n${memory.map(m => `- ${m.thread}: ${m.finding.slice(0, 200)}...`).join('\n')}`
+    : '';
+
+  const persistentContext = priorFindings.length > 0
+    ? `\n\nPRIOR COLONY KNOWLEDGE (from previous sessions):\n${priorFindings.map(f => `- Thread: ${f.thread}\n  Summary: ${f.findingSummary}\n  Confidence: ${f.confidenceScore ?? 'unknown'}\n  Run: ${f.runId}`).join('\n\n')}\n\nBuild on this prior knowledge. Do not repeat what is already established. If your new findings contradict anything above, flag the contradiction explicitly.`
     : '';
 
   const [searchResults, arxivPapers] = await Promise.all([
@@ -111,7 +130,7 @@ async function explorer(thread, goal, memory, client) {
       content: `You are a Colony Explorer Agent — a rigorous researcher investigating a specific thread.
 
 Overall research goal: "${goal}"
-Your assigned thread: "${thread}"${priorFindings}${webSources}${academicPapers}
+Your assigned thread: "${thread}"${sessionContext}${persistentContext}${webSources}${academicPapers}
 
 Investigate this thread thoroughly. Produce a detailed finding that includes:
 1. Key facts and insights discovered
@@ -123,7 +142,12 @@ When WEB SOURCES or ACADEMIC PAPERS are provided above, cite them by name and UR
     }]
   });
 
-  return response.content[0].text;
+  const citations = extractCitations(searchResults, arxivPapers);
+  console.log(`📎 [MEMORY] Citations extracted: ${JSON.stringify(citations)}`);
+  return {
+    text: response.content[0].text,
+    citations
+  };
 }
 
 module.exports = { explorer };
