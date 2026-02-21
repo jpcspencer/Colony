@@ -1,30 +1,38 @@
 // loop.js — Colony's recursive research engine
 
+const fs = require('fs');
+const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const client = new Anthropic();
+const { saveFinding } = require('./memory');
 
 // Core recursive loop state
 let colonyMemory = [];
 let iterationCount = 0;
 const MAX_ITERATIONS = 10;
 
+function generateRunId() {
+  return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+}
+
 async function runColony(goal) {
   console.log('\n🌿 COLONY INITIALIZED');
   console.log(`📍 Goal: ${goal}\n`);
   console.log('─'.repeat(60));
 
+  const runId = generateRunId();
   const threads = await seed(goal);
   
   for (const thread of threads) {
-    await recursiveLoop(thread, goal);
+    await recursiveLoop(thread, goal, 0, runId);
   }
 
   await synthesize(goal);
 }
 
-async function recursiveLoop(thread, goal, depth = 0) {
+async function recursiveLoop(thread, goal, depth = 0, runId = null) {
   iterationCount++;
   
   if (iterationCount > MAX_ITERATIONS) {
@@ -42,13 +50,17 @@ async function recursiveLoop(thread, goal, depth = 0) {
   
   colonyMemory.push({ thread, finding, verdict, iteration: iterationCount });
 
+  if (runId) {
+    saveFinding({ thread, finding, verdict, runId });
+  }
+
   const needsDeeperDig = verdict.toLowerCase().includes('insufficient') || 
                          verdict.toLowerCase().includes('investigate further') ||
                          verdict.toLowerCase().includes('contradicts');
 
   if (needsDeeperDig && depth < 2) {
     console.log(`\n🔄 [LOOP] Critic flagged gaps — going deeper on: "${thread}" (depth ${depth} → ${depth + 1})`);
-    await recursiveLoop(thread, goal, depth + 1);
+    await recursiveLoop(thread, goal, depth + 1, runId);
   } else if (needsDeeperDig) {
     console.log(`\n⚠️  [LOOP] Depth limit (2) reached for thread: "${thread}" — stopping recursion`);
   } else {
@@ -98,12 +110,34 @@ Produce a final synthesis that:
     }]
   });
 
+  const synthesisText = response.content[0].text;
   console.log('🏁 FINAL SYNTHESIS:');
   console.log('─'.repeat(60));
-  console.log(response.content[0].text);
+  console.log(synthesisText);
   console.log('─'.repeat(60));
   console.log(`\n📊 Total iterations: ${iterationCount}`);
   console.log(`🧠 Threads in memory: ${colonyMemory.length}`);
+
+  const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '-');
+  const outputDir = path.join(process.cwd(), 'outputs');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, `colony-run-${timestamp}.md`);
+  const outputContent = `# Colony Run
+
+**Goal:** ${goal}
+
+**Total iterations:** ${iterationCount}
+
+**Threads in memory:** ${colonyMemory.length}
+
+---
+
+## Final Synthesis
+
+${synthesisText}
+`;
+  fs.writeFileSync(outputPath, outputContent, 'utf8');
+  console.log(`\n📁 Synthesis saved to ${outputPath}`);
 }
 
 module.exports = { runColony };
