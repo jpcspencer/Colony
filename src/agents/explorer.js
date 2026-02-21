@@ -83,6 +83,32 @@ async function arxivSearch(thread, goal) {
   }
 }
 
+async function semanticScholarSearch(thread, goal) {
+  const query = `${thread} ${goal}`.trim();
+  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=3&fields=title,authors,abstract,year,externalIds,openAccessPdf`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Colony-Research-Agent/0.5' }
+    });
+    if (!response.ok) {
+      throw new Error(`Semantic Scholar API returned ${response.status}`);
+    }
+    const data = await response.json();
+    const papers = data.data ?? [];
+    return papers.slice(0, 3).map((p) => ({
+      title: p.title ?? '',
+      authors: p.authors?.map(a => a.name).join(', ') ?? '',
+      abstract: p.abstract ?? '',
+      url: p.openAccessPdf?.url ?? `https://www.semanticscholar.org/paper/${p.paperId}`,
+      year: p.year ?? ''
+    }));
+  } catch (err) {
+    console.log(`⚠️  [EXPLORER] Semantic Scholar search failed: ${err.message}`);
+    return [];
+  }
+}
+
 function extractCitations(searchResults, arxivPapers) {
   const citations = [];
   if (searchResults) {
@@ -109,10 +135,21 @@ async function explorer(thread, goal, memory, client, priorFindings = []) {
     ? `\n\nPRIOR COLONY KNOWLEDGE (from previous sessions):\n${priorFindings.map(f => `- Thread: ${f.thread}\n  Summary: ${f.findingSummary}\n  Confidence: ${f.confidenceScore ?? 'unknown'}\n  Run: ${f.runId}`).join('\n\n')}\n\nBuild on this prior knowledge. Do not repeat what is already established. If your new findings contradict anything above, flag the contradiction explicitly.`
     : '';
 
-  const [searchResults, arxivPapers] = await Promise.all([
+  let arxivPapers = [];
+  const [searchResults, arxivResult] = await Promise.all([
     braveSearch(thread, goal),
     arxivSearch(thread, goal),
   ]);
+
+  if (!arxivResult || arxivResult.length === 0) {
+    console.log(`📚 [EXPLORER] arXiv returned no results — falling back to Semantic Scholar`);
+    arxivPapers = await semanticScholarSearch(thread, goal);
+    if (arxivPapers.length > 0) {
+      console.log(`📚 [EXPLORER] Semantic Scholar returned ${arxivPapers.length} paper(s)`);
+    }
+  } else {
+    arxivPapers = arxivResult;
+  }
 
   const webSources = searchResults && searchResults.length > 0
     ? `\n\nWEB SOURCES:\n${searchResults.map((r, i) => `${i + 1}. **${r.title}**\n   ${r.description}\n   URL: ${r.url}`).join('\n\n')}`
