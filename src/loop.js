@@ -17,19 +17,33 @@ function generateRunId() {
   return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
 }
 
-async function runColony(goal) {
-  console.log('\n🌿 COLONY INITIALIZED');
-  console.log(`📍 Goal: ${goal}\n`);
-  console.log('─'.repeat(60));
+async function runColony(goal, emit = null) {
+  colonyMemory = [];
+  iterationCount = 0;
 
-  const runId = generateRunId();
-  const threads = await seed(goal);
-  
-  for (const thread of threads) {
-    await recursiveLoop(thread, goal, 0, runId);
+  const originalLog = console.log;
+  if (emit) {
+    console.log = (...args) => emit(args.map((a) => (typeof a === 'string' ? a : String(a))).join(''));
   }
 
-  await synthesize(goal);
+  try {
+    console.log('\n🌿 COLONY INITIALIZED');
+    console.log(`📍 Goal: ${goal}\n`);
+    console.log('─'.repeat(60));
+
+    const runId = generateRunId();
+    const threads = await seed(goal);
+
+    for (const thread of threads) {
+      await recursiveLoop(thread, goal, 0, runId);
+    }
+
+    await synthesize(goal);
+  } finally {
+    if (emit) {
+      console.log = originalLog;
+    }
+  }
 }
 
 async function recursiveLoop(thread, goal, depth = 0, runId = null) {
