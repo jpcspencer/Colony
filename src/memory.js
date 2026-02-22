@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { Finding } = require('./db');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const KNOWLEDGE_FILE = path.join(DATA_DIR, 'knowledge-graph.json');
@@ -48,6 +49,16 @@ function saveFinding(finding) {
   const existing = loadMemory();
   existing.push(entry);
   fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(existing, null, 2), 'utf8');
+
+  new Finding({
+    thread: entry.thread,
+    agent: 'explorer',
+    findingSummary: entry.findingSummary,
+    sources: entry.sources,
+    confidenceScore: entry.confidenceScore,
+    runId: entry.runId,
+    domain: (entry.domainTags || []).join(', ')
+  }).save().catch(err => console.error('DB save error:', err));
 }
 
 function loadMemory() {

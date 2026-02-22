@@ -8,6 +8,7 @@ require('dotenv').config();
 const client = new Anthropic();
 const { saveFinding } = require('./memory');
 const { verifyCitations } = require('./agents/verifier');
+const { Synthesis } = require('./db');
 
 // Core recursive loop state
 let colonyMemory = [];
@@ -42,7 +43,7 @@ async function runColony(goal, emit = null) {
       )
     );
 
-    await synthesize(goal);
+    await synthesize(goal, runId);
   } finally {
     if (emit) {
       console.log = originalLog;
@@ -117,7 +118,7 @@ async function critique(thread, finding, goal) {
   return await critic(thread, finding, goal, colonyMemory, client);
 }
 
-async function synthesize(goal) {
+async function synthesize(goal, runId = null) {
   console.log('\n' + '─'.repeat(60));
   console.log('🧬 [SYNTHESIZER] Consolidating colony findings...\n');
   
@@ -172,6 +173,13 @@ ${synthesisText}
 `;
   fs.writeFileSync(outputPath, outputContent, 'utf8');
   console.log(`\n📁 Synthesis saved to ${outputPath}`);
+
+  new Synthesis({
+    goal: goal,
+    content: synthesisText,
+    iterations: iterationCount,
+    runId: runId
+  }).save().catch(err => console.error('Synthesis DB save error:', err));
 }
 
 module.exports = { runColony };

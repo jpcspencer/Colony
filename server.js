@@ -1,7 +1,11 @@
 // server.js — Colony web interface
 
+require('dotenv').config();
 const express = require('express');
 const { runColony } = require('./src/loop');
+const { connectDB, Finding, Synthesis } = require('./src/db');
+
+connectDB();
 
 const app = express();
 app.use(express.json());
@@ -1197,46 +1201,28 @@ app.post('/run', async (req, res) => {
 });
 
 // Serve knowledge graph entries
-app.get('/api/atlas', (req, res) => {
+app.get('/api/atlas', async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const kgPath = path.join(__dirname, 'data', 'knowledge-graph.json');
-    if (!fs.existsSync(kgPath)) return res.json([]);
-    const data = JSON.parse(fs.readFileSync(kgPath, 'utf8'));
-    res.json(data);
+    const findings = await Finding.find({ isPublic: true })
+      .sort({ timestamp: -1 })
+      .limit(200);
+    res.json(findings);
   } catch (err) {
     res.json([]);
   }
 });
 
 // Serve synthesis list
-app.get('/api/codex', (req, res) => {
+app.get('/api/codex', async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const outputsDir = path.join(__dirname, 'outputs');
-    if (!fs.existsSync(outputsDir)) return res.json([]);
-    const files = fs.readdirSync(outputsDir)
-      .filter(f => f.endsWith('.md'))
-      .sort()
-      .reverse()
-      .map(f => {
-        const content = fs.readFileSync(path.join(outputsDir, f), 'utf8');
-        const goalMatch = content.match(/Research Goal:\s*\*?\*?(.+?)\*?\*?\n/) ||
-          content.match(/## Research Goal[^\n]*\n+\*?(.+?)\*?\n/) ||
-          content.match(/Goal:\s*(.+)/m);
-        const iterMatch = content.match(/Total iterations:\s*(\d+)/m) ||
-          content.match(/iterations:\s*(\d+)/im);
-        return {
-          filename: f,
-          goal: goalMatch ? goalMatch[1].trim() : f,
-          iterations: iterMatch ? iterMatch[1] : '?',
-          date: f.replace('colony-run-', '').replace('.md', ''),
-          preview: content.slice(0, 800)
-        };
-      });
-    res.json(files);
+    const syntheses = await Synthesis.find({ isPublic: true })
+      .sort({ timestamp: -1 });
+    res.json(syntheses.map(doc => ({
+      goal: doc.goal,
+      date: doc.timestamp ? new Date(doc.timestamp).toISOString().slice(0, 10) : '',
+      iterations: doc.iterations,
+      preview: (doc.content || '').slice(0, 800)
+    })));
   } catch (err) {
     res.json([]);
   }
