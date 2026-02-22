@@ -35,6 +35,7 @@ const HTML = `<!DOCTYPE html>
       --critic-hex: #b04040;
       --synthesizer-hex: #5a7a9a;
       --memory-hex: #7a5a9a;
+      --verifier: #4a7a6a;
     }
     * { box-sizing: border-box; }
     body {
@@ -143,6 +144,7 @@ const HTML = `<!DOCTYPE html>
     .line[data-agent="critic"] { color: var(--critic); }
     .line[data-agent="synthesizer"] { color: var(--synthesizer); }
     .line[data-agent="memory"] { color: var(--memory); }
+    .line[data-agent="verifier"] { color: var(--verifier); }
     .line[data-agent="loop"] { color: var(--text-muted); }
     .line[data-agent="web"] { color: var(--text-muted); }
     .mode-toggle {
@@ -355,6 +357,7 @@ function agentForLine(text) {
   if (/\\[SYNTHESIZER\\]|🧬|🏁|FINAL SYNTHESIS/.test(text)) return 'synthesizer';
   if (/\\[MEMORY\\]|📁|knowledge/.test(text)) return 'memory';
   if (/\\[LOOP\\]|🔄|✅|⚠️/.test(text)) return 'loop';
+  if (/✓ \\[VERIFIER\\]/.test(text)) return 'verifier';
   return 'web';
 }
 

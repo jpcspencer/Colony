@@ -16,7 +16,7 @@ async function fetchPageContent(url) {
     if (!response.ok) return { status: response.status, content: null };
     const text = await response.text();
     // Strip HTML tags, get plain text, limit to 3000 chars
-    const plain = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000);
+    const plain = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 8000);
     return { status: response.status, content: plain };
   } catch (err) {
     if (err.name === 'AbortError') return { status: 'timeout', content: null };
