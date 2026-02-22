@@ -15,6 +15,7 @@ const HTML = `<!DOCTYPE html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='8' fill='%230a0a0a'/><text x='50' y='54' font-size='68' font-family='Georgia,serif' fill='%238b7355' text-anchor='middle' dominant-baseline='middle'>C</text></svg>">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
@@ -36,6 +37,20 @@ const HTML = `<!DOCTYPE html>
       --synthesizer-hex: #5a7a9a;
       --memory-hex: #7a5a9a;
       --verifier: #4a7a6a;
+    }
+    body.light {
+      --bg: #f5f0e8;
+      --text: #2a2420;
+      --text-muted: #6b6355;
+      --accent: #8b7355;
+      --terminal-bg: #ede8de;
+      --terminal-border: #c8c0b0;
+      --seeder: #2d4a28;
+      --explorer: #6b4f0a;
+      --critic: #5a1f1f;
+      --synthesizer: #1f3a5a;
+      --memory: #3a1f5a;
+      --verifier: #1f4a3a;
     }
     * { box-sizing: border-box; }
     body {
@@ -273,34 +288,385 @@ const HTML = `<!DOCTYPE html>
       color: var(--accent);
       letter-spacing: 0.1em;
     }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .nav-link {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--accent);
+      filter: none;
+    }
+    .theme-toggle {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: 1px solid var(--terminal-border);
+      border-radius: 3px;
+      padding: 0.25rem 0.6rem;
+    }
+    .theme-toggle:hover {
+      color: var(--text);
+      filter: none;
+    }
+    .page-view {
+      display: none;
+      width: 100%;
+      animation: fadeIn 0.2s ease;
+    }
+    .page-view.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .atlas-header {
+      margin-bottom: 1.5rem;
+    }
+    .atlas-header h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.5rem;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .atlas-header p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .atlas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1rem;
+      max-height: 520px;
+      overflow-y: auto;
+    }
+    .atlas-card {
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      padding: 1rem 1.25rem;
+      cursor: default;
+      transition: border-color 0.2s;
+    }
+    .atlas-card:hover { border-color: var(--accent); }
+    .atlas-card .card-agent {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .atlas-card .card-thread {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+    .atlas-card .card-finding {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-height: 60px;
+      overflow: hidden;
+    }
+    .atlas-card .card-meta {
+      margin-top: 0.6rem;
+      font-size: 0.65rem;
+      color: var(--terminal-border);
+      display: flex;
+      justify-content: space-between;
+    }
+    .atlas-card .card-confidence {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .conf-bar {
+      width: 50px;
+      height: 2px;
+      background: var(--terminal-border);
+      position: relative;
+    }
+    .conf-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: var(--accent);
+    }
+    .atlas-empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-style: italic;
+      padding: 2rem 0;
+    }
+    .codex-header {
+      margin-bottom: 1.5rem;
+    }
+    .codex-header h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.5rem;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .codex-header p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .codex-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 520px;
+      overflow-y: auto;
+    }
+    .codex-entry {
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .codex-entry:hover { border-color: var(--accent); }
+    .codex-entry .entry-goal {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+    .codex-entry .entry-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 1rem;
+    }
+    .codex-detail {
+      display: none;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--terminal-border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .codex-detail.visible { display: block; }
+    .system-content {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+    .system-content h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.5rem;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .system-content .system-tagline {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-bottom: 2rem;
+    }
+    .system-section {
+      margin-bottom: 2rem;
+    }
+    .system-section h3 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid var(--terminal-border);
+      padding-bottom: 0.4rem;
+    }
+    .system-section p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+      margin-bottom: 0.75rem;
+    }
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .agent-item {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .agent-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .agent-item .agent-name {
+      font-size: 0.75rem;
+      color: var(--text);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.15rem;
+    }
+    .agent-item .agent-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Colony</h1>
-    <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
-    <div class="input-row" style="position:relative">
-      <button class="history-btn" id="history-btn" type="button" title="Query history" aria-label="Query history">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      </button>
-      <input type="text" id="goal" placeholder="Enter your research goal..." />
-      <button id="launch">Launch Colony</button>
-      <div class="history-dropdown" id="history-dropdown"></div>
-    </div>
-    <div class="mode-toggle">
-      <button class="mode-btn active" id="btn-stream">Stream</button>
-      <button class="mode-btn" id="btn-web">Web</button>
-    </div>
-    <div class="output-panel" id="output"></div>
-    <div id="graph-panel">
-      <canvas id="graph-canvas"></canvas>
-      <div class="node-count-badge" id="graph-node-count">0 findings</div>
-      <div class="node-info" id="node-info">
-        <div class="ni-agent" id="ni-agent"></div>
-        <div class="ni-thread" id="ni-thread"></div>
-        <div class="ni-finding" id="ni-finding"></div>
+    <div class="top-bar">
+      <div>
+        <h1>Colony</h1>
+        <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
-      <div class="graph-hint" id="graph-hint">drag · scroll · click</div>
+      <div class="nav-links">
+        <button class="nav-link" id="nav-atlas">Atlas</button>
+        <button class="nav-link" id="nav-codex">Codex</button>
+        <button class="nav-link" id="nav-system">System</button>
+        <button class="theme-toggle" id="theme-toggle">Light</button>
+      </div>
+    </div>
+
+    <!-- Main research view -->
+    <div id="view-main" class="page-view active">
+      <div class="input-row">
+        <button class="theme-toggle" id="history-btn" style="padding: 0.75rem; font-size: 1rem; border-color: var(--terminal-border);">⏱</button>
+        <input type="text" id="goal" placeholder="Enter your research goal..." />
+        <button id="launch">Launch Colony</button>
+      </div>
+      <div id="history-panel" style="display:none; background:var(--terminal-bg); border:1px solid var(--terminal-border); border-radius:4px; margin-bottom:1rem; max-height:200px; overflow-y:auto;"></div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-stream">Stream</button>
+        <button class="mode-btn" id="btn-web">Web</button>
+      </div>
+      <div class="output-panel" id="output"></div>
+      <div id="graph-panel">
+        <canvas id="graph-canvas"></canvas>
+        <div class="node-count-badge" id="graph-node-count">0 findings</div>
+        <div class="node-info" id="node-info">
+          <div class="ni-agent" id="ni-agent"></div>
+          <div class="ni-thread" id="ni-thread"></div>
+          <div class="ni-finding" id="ni-finding"></div>
+        </div>
+        <div class="graph-hint" id="graph-hint">drag · scroll · click</div>
+      </div>
+    </div>
+
+    <!-- Atlas view -->
+    <div id="view-atlas" class="page-view">
+      <div class="atlas-header">
+        <h2>Atlas</h2>
+        <p>The accumulated knowledge graph — every verified finding Colony has ever produced</p>
+      </div>
+      <div class="atlas-grid" id="atlas-grid">
+        <div class="atlas-empty">Loading knowledge graph...</div>
+      </div>
+    </div>
+
+    <!-- Codex view -->
+    <div id="view-codex" class="page-view">
+      <div class="codex-header">
+        <h2>Codex</h2>
+        <p>Every completed research synthesis — Colony's archive of completed investigations</p>
+      </div>
+      <div class="codex-list" id="codex-list">
+        <div class="atlas-empty">Loading synthesis archive...</div>
+      </div>
+    </div>
+
+    <!-- System view -->
+    <div id="view-system" class="page-view">
+      <div class="system-content">
+        <h2>System</h2>
+        <p class="system-tagline">Colony is a recursive peer-reviewed AI research platform. Not a chatbot. Not a search engine. A living research institution.</p>
+
+        <div class="system-section">
+          <h3>The Core Insight</h3>
+          <p>Every other AI tool answers questions. Colony explores domains. It seeds a research goal into multiple parallel threads, explores each with real web search and academic sources, subjects every finding to adversarial peer review, and synthesizes a final report grounded in verified citations.</p>
+          <p>Over time, Colony builds a persistent knowledge graph that compounds across sessions. A Colony that has researched longevity for six months has mapped contradictions and built structured knowledge that doesn't exist anywhere else.</p>
+        </div>
+
+        <div class="system-section">
+          <h3>The Six Agents</h3>
+          <div class="agent-list">
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#4a6741"></div>
+              <div>
+                <div class="agent-name">Seeder</div>
+                <div class="agent-desc">Takes the research goal and maps it into 3–5 focused exploration threads. Like a professor outlining a research syllabus.</div>
+              </div>
+            </div>
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#c8a84b"></div>
+              <div>
+                <div class="agent-name">Explorer</div>
+                <div class="agent-desc">Researches one thread deeply using Brave Search and academic sources. Injects prior colony knowledge before researching — building on what Colony already knows.</div>
+              </div>
+            </div>
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#b04040"></div>
+              <div>
+                <div class="agent-name">Critic</div>
+                <div class="agent-desc">Peer-reviews every Explorer finding. Scores confidence 0–100, flags logical gaps, demands citations, triggers recursion into unresolved questions. Adversarial by design.</div>
+              </div>
+            </div>
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#4a7a6a"></div>
+              <div>
+                <div class="agent-name">Verifier</div>
+                <div class="agent-desc">Fetches every cited URL and checks whether the source actually supports the claim made. Flags dead links, paywalled sources, and hallucinated attributions.</div>
+              </div>
+            </div>
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#5a7a9a"></div>
+              <div>
+                <div class="agent-name">Synthesizer</div>
+                <div class="agent-desc">After all threads complete, reads the entire colony memory and writes the final report with confidence ratings, unresolved contradictions, and epistemic integrity assessment.</div>
+              </div>
+            </div>
+            <div class="agent-item">
+              <div class="agent-dot" style="background:#7a5a9a"></div>
+              <div>
+                <div class="agent-name">Memory</div>
+                <div class="agent-desc">Persists all findings to the knowledge graph with full metadata — thread, finding summary, verified citations, critic verdict, confidence score, domain tags, timestamp, run ID.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-section">
+          <h3>The Defensible Moat</h3>
+          <p>Colony's knowledge graph accumulates across every session. Each run builds on everything Colony has ever learned about a domain. This compounding structure — adversarial research that never forgets — is not replicable by spinning up a competitor overnight.</p>
+          <p>Built by Jordan Spencer (@0xJozen) · February 2026</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -601,32 +967,6 @@ function loadHistory() {
   } catch(_) { return []; }
 }
 
-const historyBtn = document.getElementById('history-btn');
-const historyDropdown = document.getElementById('history-dropdown');
-
-historyBtn.addEventListener('click', () => {
-  const visible = historyDropdown.classList.toggle('visible');
-  if (visible) {
-    const history = loadHistory();
-    historyDropdown.innerHTML = history.length ? history.map((h, i) =>
-      '<div class="history-item" data-idx="' + i + '">' + (h.query || '(empty)').slice(0, 80) + (h.query && h.query.length > 80 ? '...' : '') + '</div>'
-    ).join('') : '<div class="history-item" style="cursor:default;color:var(--text-muted)">No history yet</div>';
-    historyDropdown.querySelectorAll('.history-item[data-idx]').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.idx, 10);
-        goalInput.value = history[idx]?.query || '';
-        historyDropdown.classList.remove('visible');
-      });
-    });
-  }
-});
-
-document.addEventListener('click', (e) => {
-  if (historyDropdown.classList.contains('visible') && !historyBtn.contains(e.target) && !historyDropdown.contains(e.target)) {
-    historyDropdown.classList.remove('visible');
-  }
-});
-
 // ── Launch ────────────────────────────────────────────────────
 launchBtn.addEventListener('click', async () => {
   const goal = goalInput.value.trim();
@@ -671,7 +1011,157 @@ launchBtn.addEventListener('click', async () => {
 });
 
 window.addEventListener('resize', resizeGraph);
+
+// ── Navigation ────────────────────────────────────────────────
+const views = {
+  main: document.getElementById('view-main'),
+  atlas: document.getElementById('view-atlas'),
+  codex: document.getElementById('view-codex'),
+  system: document.getElementById('view-system')
+};
+
+const navLinks = {
+  atlas: document.getElementById('nav-atlas'),
+  codex: document.getElementById('nav-codex'),
+  system: document.getElementById('nav-system')
+};
+
+function showView(name) {
+  Object.values(views).forEach(v => v.classList.remove('active'));
+  Object.values(navLinks).forEach(l => l && l.classList.remove('active'));
+  views[name].classList.add('active');
+  if (navLinks[name]) navLinks[name].classList.add('active');
+  if (name === 'atlas') loadAtlas();
+  if (name === 'codex') loadCodex();
+}
+
+document.getElementById('nav-atlas').addEventListener('click', () => showView('atlas'));
+document.getElementById('nav-codex').addEventListener('click', () => showView('codex'));
+document.getElementById('nav-system').addEventListener('click', () => showView('system'));
+
+document.querySelector('h1').addEventListener('click', () => showView('main'));
+document.querySelector('h1').style.cursor = 'pointer';
+
+// ── Theme toggle ──────────────────────────────────────────────
+const themeBtn = document.getElementById('theme-toggle');
+let isLight = false;
+themeBtn.addEventListener('click', () => {
+  isLight = !isLight;
+  document.body.classList.toggle('light', isLight);
+  themeBtn.textContent = isLight ? 'Dark' : 'Light';
+});
+
+// ── Atlas ─────────────────────────────────────────────────────
+const AGENT_CSS_MAP = {
+  seeder: '#4a6741', explorer: '#c8a84b', critic: '#b04040',
+  synthesizer: '#5a7a9a', memory: '#7a5a9a', verifier: '#4a7a6a',
+  default: '#8b7355'
+};
+
+async function loadAtlas() {
+  const grid = document.getElementById('atlas-grid');
+  grid.innerHTML = '<div class="atlas-empty">Loading...</div>';
+  try {
+    const data = await fetch('/api/atlas').then(r => r.json());
+    if (!data.length) {
+      grid.innerHTML = '<div class="atlas-empty">No findings yet. Launch a colony to begin building the Atlas.</div>';
+      return;
+    }
+    grid.innerHTML = data.map(entry => {
+      const color = AGENT_CSS_MAP[entry.agent] || AGENT_CSS_MAP.default;
+      const conf = entry.confidenceScore || 70;
+      const verifiedCount = (entry.sources || []).filter(s => s.verified).length;
+      const totalSources = (entry.sources || []).length;
+      return \`<div class="atlas-card">
+        <div class="card-agent" style="color:\${color}">\${(entry.agent || 'explorer').toUpperCase()}</div>
+        <div class="card-thread">\${entry.thread || ''}</div>
+        <div class="card-finding">\${entry.findingSummary || ''}</div>
+        <div class="card-meta">
+          <span>\${entry.runId || ''}</span>
+          <div class="card-confidence">
+            <div class="conf-bar"><div class="conf-fill" style="width:\${conf}%"></div></div>
+            <span>\${conf}</span>
+            \${totalSources ? \`<span style="color:var(--verifier)">\${verifiedCount}/\${totalSources} verified</span>\` : ''}
+          </div>
+        </div>
+      </div>\`;
+    }).join('');
+  } catch(err) {
+    grid.innerHTML = '<div class="atlas-empty">Could not load knowledge graph.</div>';
+  }
+}
+
+// ── Codex ─────────────────────────────────────────────────────
+async function loadCodex() {
+  const list = document.getElementById('codex-list');
+  list.innerHTML = '<div class="atlas-empty">Loading...</div>';
+  try {
+    const data = await fetch('/api/codex').then(r => r.json());
+    if (!data.length) {
+      list.innerHTML = '<div class="atlas-empty">No syntheses yet. Complete a colony run to populate the Codex.</div>';
+      return;
+    }
+    list.innerHTML = data.map((entry, i) => \`
+      <div class="codex-entry" onclick="toggleCodex(\${i})">
+        <div class="entry-goal">\${entry.goal}</div>
+        <div class="entry-meta">
+          <span>\${entry.date}</span>
+          <span>\${entry.iterations} iterations</span>
+        </div>
+        <div class="codex-detail" id="codex-detail-\${i}">\${entry.preview}...</div>
+      </div>
+    \`).join('');
+  } catch(err) {
+    list.innerHTML = '<div class="atlas-empty">Could not load synthesis archive.</div>';
+  }
+}
+
+function toggleCodex(i) {
+  const detail = document.getElementById(\`codex-detail-\${i}\`);
+  detail.classList.toggle('visible');
+}
+
+// ── Query history ─────────────────────────────────────────────
+const historyBtn = document.getElementById('history-btn');
+const historyPanel = document.getElementById('history-panel');
+
+historyBtn.addEventListener('click', () => {
+  const history = JSON.parse(localStorage.getItem('colony-history') || '[]');
+  if (!history.length) return;
+  historyPanel.style.display = historyPanel.style.display === 'none' ? 'block' : 'none';
+  historyPanel.innerHTML = history.map(h => \`
+    <div onclick="selectHistory('\${h.query.replace(/'/g, "\\\\'")}'); this.parentElement.style.display='none'"
+         style="padding:0.6rem 1rem; font-size:0.75rem; color:var(--text-muted); cursor:pointer; border-bottom:1px solid var(--terminal-border)">
+      <span style="color:var(--text-muted); font-size:0.65rem; margin-right:0.5rem">\${new Date(h.timestamp).toLocaleString()}</span>
+      \${h.query}
+    </div>
+  \`).join('');
+});
+
+function selectHistory(query) {
+  document.getElementById('goal').value = query;
+  showView('main');
+}
+
+function updateClock() {
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+}
+updateClock();
+setInterval(updateClock, 1000);
   </script>
+  <div id="live-clock" style="
+    position: fixed;
+    top: 1.5rem;
+    left: 2rem;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    pointer-events: none;
+    z-index: 100;
+  "></div>
 </body>
 </html>
 `;
@@ -703,6 +1193,52 @@ app.post('/run', async (req, res) => {
     emit(`Error: ${err.message}`);
   } finally {
     res.end();
+  }
+});
+
+// Serve knowledge graph entries
+app.get('/api/atlas', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const kgPath = path.join(__dirname, 'data', 'knowledge-graph.json');
+    if (!fs.existsSync(kgPath)) return res.json([]);
+    const data = JSON.parse(fs.readFileSync(kgPath, 'utf8'));
+    res.json(data);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+// Serve synthesis list
+app.get('/api/codex', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const outputsDir = path.join(__dirname, 'outputs');
+    if (!fs.existsSync(outputsDir)) return res.json([]);
+    const files = fs.readdirSync(outputsDir)
+      .filter(f => f.endsWith('.md'))
+      .sort()
+      .reverse()
+      .map(f => {
+        const content = fs.readFileSync(path.join(outputsDir, f), 'utf8');
+        const goalMatch = content.match(/Research Goal:\s*\*?\*?(.+?)\*?\*?\n/) ||
+          content.match(/## Research Goal[^\n]*\n+\*?(.+?)\*?\n/) ||
+          content.match(/Goal:\s*(.+)/m);
+        const iterMatch = content.match(/Total iterations:\s*(\d+)/m) ||
+          content.match(/iterations:\s*(\d+)/im);
+        return {
+          filename: f,
+          goal: goalMatch ? goalMatch[1].trim() : f,
+          iterations: iterMatch ? iterMatch[1] : '?',
+          date: f.replace('colony-run-', '').replace('.md', ''),
+          preview: content.slice(0, 800)
+        };
+      });
+    res.json(files);
+  } catch (err) {
+    res.json([]);
   }
 });
 
