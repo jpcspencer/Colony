@@ -92,6 +92,21 @@ async function semanticScholarSearch(thread, goal) {
       headers: { 'User-Agent': 'Colony-Research-Agent/0.5' }
     });
     if (!response.ok) {
+      if (response.status === 429) {
+        console.log(`⏳ [EXPLORER] Semantic Scholar rate limited — retrying in 3s`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const retry = await fetch(url, { headers: { 'User-Agent': 'Colony-Research-Agent/0.5' } });
+        if (!retry.ok) throw new Error(`Semantic Scholar retry failed: ${retry.status}`);
+        const retryData = await retry.json();
+        const papers = retryData.data ?? [];
+        return papers.slice(0, 3).map((p) => ({
+          title: p.title ?? '',
+          authors: p.authors?.map(a => a.name).join(', ') ?? '',
+          abstract: p.abstract ?? '',
+          url: p.openAccessPdf?.url ?? `https://www.semanticscholar.org/paper/${p.paperId}`,
+          year: p.year ?? ''
+        }));
+      }
       throw new Error(`Semantic Scholar API returned ${response.status}`);
     }
     const data = await response.json();
@@ -132,7 +147,7 @@ async function explorer(thread, goal, memory, client, priorFindings = []) {
     : '';
 
   const persistentContext = priorFindings.length > 0
-    ? `\n\nPRIOR COLONY KNOWLEDGE (from previous sessions):\n${priorFindings.map(f => `- Thread: ${f.thread}\n  Summary: ${f.findingSummary}\n  Confidence: ${f.confidenceScore ?? 'unknown'}\n  Run: ${f.runId}`).join('\n\n')}\n\nBuild on this prior knowledge. Do not repeat what is already established. If your new findings contradict anything above, flag the contradiction explicitly.`
+    ? `\n\nPRIOR COLONY KNOWLEDGE (from previous sessions):\n${priorFindings.map(f => `- Thread: ${f.thread}\n  Summary: ${f.findingSummary}\n  Confidence: ${f.confidenceScore ?? 'unknown'}\n  Run: ${f.runId}`).join('\n\n')}\n\nMANDATORY INSTRUCTIONS FOR PRIOR KNOWLEDGE:\n1. You MUST begin your finding with a section titled "## Prior Knowledge Assessment" that explicitly names at least one prior finding and states whether your new research CONFIRMS, CONTRADICTS, or EXTENDS it.\n2. Do NOT restate or summarize what prior findings already established — only report what is genuinely new.\n3. If your findings contradict prior colony knowledge, flag this explicitly with the word CONTRADICTION in bold.\n4. If prior knowledge is irrelevant to this thread, state that explicitly in the Prior Knowledge Assessment section.`
     : '';
 
   let arxivPapers = [];

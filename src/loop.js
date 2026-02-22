@@ -34,9 +34,12 @@ async function runColony(goal, emit = null) {
     const runId = generateRunId();
     const threads = await seed(goal);
 
-    for (const thread of threads) {
-      await recursiveLoop(thread, goal, 0, runId);
-    }
+    await Promise.all(
+      threads.map((thread, index) =>
+        new Promise(resolve => setTimeout(resolve, index * 5000))
+          .then(() => recursiveLoop(thread, goal, 0, runId))
+      )
+    );
 
     await synthesize(goal);
   } finally {

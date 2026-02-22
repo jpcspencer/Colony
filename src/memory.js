@@ -63,14 +63,27 @@ function loadMemory() {
   }
 }
 
+function scoreRelevance(thread, entry) {
+  const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'were', 'have', 'has', 'been', 'into', 'which', 'their', 'there', 'about', 'would', 'could', 'should', 'will', 'can', 'may', 'might']);
+  const keywords = thread.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+  const searchText = `${entry.thread ?? ''} ${entry.findingSummary ?? ''}`.toLowerCase();
+  return keywords.filter((kw) => searchText.includes(kw)).length;
+}
+
 function queryMemory(domain) {
   const memory = loadMemory();
   const domainLower = domain.toLowerCase();
-  return memory.filter(
+  const filtered = memory.filter(
     (entry) =>
       entry.domainTags?.some((tag) => tag.includes(domainLower) || domainLower.includes(tag)) ||
       entry.thread?.toLowerCase().includes(domainLower)
   );
+  return filtered
+    .map((entry) => ({ entry, score: scoreRelevance(domain, entry) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map(({ entry }) => entry);
 }
 
 module.exports = { saveFinding, loadMemory, queryMemory };
