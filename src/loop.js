@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const client = new Anthropic();
 const { saveFinding } = require('./memory');
+const { verifyCitations } = require('./agents/verifier');
 
 // Core recursive loop state
 let colonyMemory = [];
@@ -78,8 +79,13 @@ async function recursiveLoop(thread, goal, depth = 0, runId = null) {
   
   colonyMemory.push({ thread, finding, verdict, iteration: iterationCount });
 
+  const verifiedCitations = await verifyCitations(citations, finding);
+  const verifiedCount = verifiedCitations.filter(c => c.verified).length;
+  const deadLinks = verifiedCitations.filter(c => c.verificationStatus === 'DEAD_LINK').length;
+  console.log(`✓ [VERIFIER] ${verifiedCount}/${verifiedCitations.length} citations verified${deadLinks > 0 ? `, ${deadLinks} dead link(s) flagged` : ''}`);
+
   if (runId) {
-    saveFinding({ thread, finding, verdict, citations, runId });
+    saveFinding({ thread, finding, verdict, citations: verifiedCitations, runId });
   }
 
   const needsDeeperDig = verdict.toLowerCase().includes('insufficient') || 

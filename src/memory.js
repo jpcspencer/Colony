@@ -41,7 +41,7 @@ function saveFinding(finding) {
     domainTags,
     timestamp,
     runId,
-    sources: Array.isArray(citations) ? citations : [],
+    sources: Array.isArray(citations) ? citations : [], // full verified citation objects (verificationStatus, verificationNote)
   };
 
   ensureDataDir();

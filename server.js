@@ -171,6 +171,46 @@ const HTML = `<!DOCTYPE html>
       color: var(--text);
     }
     .mode-btn:hover:not(.active) { color: var(--text); }
+    .history-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .history-btn:hover { color: var(--text); border-color: var(--accent); }
+    .history-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      z-index: 10;
+    }
+    .history-dropdown.visible { display: block; }
+    .history-item {
+      padding: 0.5rem 1rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 1px solid var(--terminal-border);
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: rgba(139,115,85,0.15); color: var(--text); }
     #graph-panel {
       width: 100%;
       height: 480px;
@@ -237,9 +277,13 @@ const HTML = `<!DOCTYPE html>
   <div class="container">
     <h1>Colony</h1>
     <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
-    <div class="input-row">
+    <div class="input-row" style="position:relative">
+      <button class="history-btn" id="history-btn" type="button" title="Query history" aria-label="Query history">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
       <input type="text" id="goal" placeholder="Enter your research goal..." />
       <button id="launch">Launch Colony</button>
+      <div class="history-dropdown" id="history-dropdown"></div>
     </div>
     <div class="mode-toggle">
       <button class="mode-btn active" id="btn-stream">Stream</button>
@@ -320,26 +364,44 @@ function appendLine(text) {
   div.dataset.agent = agentForLine(text);
   div.textContent = text;
   output.appendChild(div);
-  output.scrollTop = output.scrollHeight;
+  const isScrolledToBottom = output.scrollHeight - output.clientHeight <= output.scrollTop + 50;
+  if (isScrolledToBottom) output.scrollTop = output.scrollHeight;
   tryParseNode(text);
 }
 
 // ── Node parsing from stream ──────────────────────────────────
 const graphNodes = [];
 function tryParseNode(text) {
-  // Parse Explorer findings added to memory
-  if (text.includes('[MEMORY]') && text.includes('citation')) {
+  if (text.includes('citation(s) preserved for this thread')) {
     const threadMatch = text.match(/for thread: "([^"]+)"/);
-    if (threadMatch) {
-      const agent = agentForLine(text);
-      addGraphNode({
-        thread: threadMatch[1],
-        agent: 'explorer',
-        finding: text,
-        confidence: 70 + Math.floor(Math.random() * 20),
-        runId: new Date().toISOString().slice(0,16)
-      });
-    }
+    const thread = threadMatch ? threadMatch[1] : 'Finding';
+    addGraphNode({
+      thread,
+      agent: 'explorer',
+      finding: text,
+      confidence: 65 + Math.floor(Math.random() * 25),
+      runId: new Date().toISOString().slice(0,16)
+    });
+  }
+  if (text.includes('[SYNTHESIZER]')) {
+    addGraphNode({
+      thread: 'Synthesis',
+      agent: 'synthesizer',
+      finding: 'Synthesizing all colony findings...',
+      confidence: 90,
+      runId: new Date().toISOString().slice(0,16)
+    });
+  }
+  if (text.includes('[EXPLORER]') && text.includes('Researching thread:')) {
+    const threadMatch = text.match(/Researching thread: "([^"]+)"/);
+    const thread = threadMatch ? threadMatch[1] : 'Explorer thread';
+    addGraphNode({
+      thread,
+      agent: 'explorer',
+      finding: text,
+      confidence: 60 + Math.floor(Math.random() * 20),
+      runId: new Date().toISOString().slice(0,16)
+    });
   }
 }
 
@@ -449,15 +511,10 @@ function animateGraph() {
 }
 
 function spawnNode(nodeData) {
-  const i = nodeMeshes.length;
-  const phi2 = Math.PI*(3-Math.sqrt(5));
-  const y = 1-(i/Math.max(graphNodes.length-1,1))*2;
-  const r2 = Math.sqrt(Math.max(0,1-y*y));
-  const spread = 8 + Math.random()*3;
   const pos = new THREE.Vector3(
-    Math.cos(phi2*i)*r2*spread,
-    y*spread*0.7,
-    Math.sin(phi2*i)*r2*spread
+    (Math.random() - 0.5) * 16,
+    (Math.random() - 0.5) * 16,
+    (Math.random() - 0.5) * 16
   );
 
   const color = AGENT_COLORS_HEX[nodeData.agent] || AGENT_COLORS_HEX.default;
@@ -521,10 +578,57 @@ function resizeGraph() {
   threeRenderer.setSize(W,H);
 }
 
+// ── Query history ─────────────────────────────────────────────
+const HISTORY_KEY = 'colony-history';
+const MAX_HISTORY = 20;
+
+function saveToHistory(query) {
+  try {
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(_) {}
+    history.unshift({ query, timestamp: Date.now() });
+    history = history.slice(0, MAX_HISTORY);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch(_) {}
+}
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch(_) { return []; }
+}
+
+const historyBtn = document.getElementById('history-btn');
+const historyDropdown = document.getElementById('history-dropdown');
+
+historyBtn.addEventListener('click', () => {
+  const visible = historyDropdown.classList.toggle('visible');
+  if (visible) {
+    const history = loadHistory();
+    historyDropdown.innerHTML = history.length ? history.map((h, i) =>
+      '<div class="history-item" data-idx="' + i + '">' + (h.query || '(empty)').slice(0, 80) + (h.query && h.query.length > 80 ? '...' : '') + '</div>'
+    ).join('') : '<div class="history-item" style="cursor:default;color:var(--text-muted)">No history yet</div>';
+    historyDropdown.querySelectorAll('.history-item[data-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        goalInput.value = history[idx]?.query || '';
+        historyDropdown.classList.remove('visible');
+      });
+    });
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (historyDropdown.classList.contains('visible') && !historyBtn.contains(e.target) && !historyDropdown.contains(e.target)) {
+    historyDropdown.classList.remove('visible');
+  }
+});
+
 // ── Launch ────────────────────────────────────────────────────
 launchBtn.addEventListener('click', async () => {
   const goal = goalInput.value.trim();
   if (!goal) return;
+  saveToHistory(goal);
   launchBtn.disabled = true;
   output.innerHTML = '';
   graphNodes.length = 0;
