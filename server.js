@@ -541,6 +541,115 @@ const HTML = `<!DOCTYPE html>
       color: var(--text-muted);
       line-height: 1.6;
     }
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .auth-overlay.visible {
+      display: flex;
+    }
+    .auth-modal {
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 6px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+    }
+    .auth-modal h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.6rem;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .auth-modal .auth-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-bottom: 2rem;
+    }
+    .auth-field {
+      margin-bottom: 1rem;
+    }
+    .auth-field label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+    .auth-field input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      color: var(--text);
+      outline: none;
+    }
+    .auth-field input:focus {
+      border-color: var(--accent);
+    }
+    .auth-submit {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-weight: 600;
+      font-size: 1rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 4px;
+      color: var(--bg);
+      cursor: pointer;
+    }
+    .auth-submit:hover { filter: brightness(1.1); }
+    .auth-error {
+      font-size: 0.75rem;
+      color: var(--critic);
+      margin-top: 0.75rem;
+      min-height: 1rem;
+    }
+    .auth-switch {
+      margin-top: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .auth-switch span {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .auth-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0;
+    }
+    .nav-user {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+    .nav-user span {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -555,6 +664,8 @@ const HTML = `<!DOCTYPE html>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
         <button class="theme-toggle" id="theme-toggle">Light</button>
+        <button class="nav-link" id="nav-signin">Sign In</button>
+        <span class="nav-user" id="nav-user" style="display:none"></span>
       </div>
     </div>
 
@@ -1153,6 +1264,92 @@ function updateClock() {
 }
 updateClock();
 setInterval(updateClock, 1000);
+
+// ── Auth state ────────────────────────────────────────────────
+let authToken = localStorage.getItem('colony-token');
+let authEmail = localStorage.getItem('colony-email');
+
+function updateAuthUI() {
+  const signinBtn = document.getElementById('nav-signin');
+  const userSpan = document.getElementById('nav-user');
+  if (authToken && authEmail) {
+    signinBtn.style.display = 'none';
+    userSpan.style.display = 'inline';
+    userSpan.innerHTML = '<span>' + authEmail.split('@')[0] + '</span>';
+  } else {
+    signinBtn.style.display = 'inline';
+    userSpan.style.display = 'none';
+  }
+}
+
+updateAuthUI();
+
+// ── Auth modal ────────────────────────────────────────────────
+const authOverlay = document.getElementById('auth-overlay');
+let authMode = 'login';
+
+document.getElementById('nav-signin').addEventListener('click', () => {
+  authOverlay.classList.add('visible');
+});
+
+document.getElementById('auth-close').addEventListener('click', () => {
+  authOverlay.classList.remove('visible');
+  document.getElementById('auth-error').textContent = '';
+});
+
+document.getElementById('auth-switch-link').addEventListener('click', () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  const isLogin = authMode === 'login';
+  document.getElementById('auth-title').textContent = isLogin ? 'Sign in' : 'Create account';
+  document.getElementById('auth-subtitle').textContent = isLogin ? 'Continue your research' : 'Begin your research';
+  document.getElementById('auth-submit').textContent = isLogin ? 'Sign in' : 'Create account';
+  document.getElementById('auth-switch-link').textContent = isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
+  document.getElementById('auth-error').textContent = '';
+});
+
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errorEl = document.getElementById('auth-error');
+  errorEl.textContent = '';
+
+  if (!email || !password) {
+    errorEl.textContent = 'Please enter email and password';
+    return;
+  }
+
+  try {
+    const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorEl.textContent = data.error || 'Something went wrong';
+      return;
+    }
+    authToken = data.token;
+    authEmail = data.email;
+    localStorage.setItem('colony-token', authToken);
+    localStorage.setItem('colony-email', authEmail);
+    updateAuthUI();
+    authOverlay.classList.remove('visible');
+  } catch (err) {
+    errorEl.textContent = 'Connection error';
+  }
+});
+
+authOverlay.addEventListener('click', e => {
+  if (e.target === authOverlay) {
+    authOverlay.classList.remove('visible');
+  }
+});
+
+document.getElementById('auth-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('auth-submit').click();
+});
   </script>
   <div id="live-clock" style="
     position: fixed;
@@ -1166,6 +1363,27 @@ setInterval(updateClock, 1000);
     pointer-events: none;
     z-index: 100;
   "></div>
+
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="auth-close">✕</button>
+      <h2 id="auth-title">Sign in</h2>
+      <p class="auth-subtitle" id="auth-subtitle">Continue your research</p>
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="your@email.com" />
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="••••••••" />
+      </div>
+      <button class="auth-submit" id="auth-submit">Sign in</button>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-switch">
+        <span id="auth-switch-link">Don't have an account? Sign up</span>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 `;
@@ -1226,6 +1444,44 @@ app.get('/api/codex', async (req, res) => {
   } catch (err) {
     res.json([]);
   }
+});
+
+const User = require('./src/models/user');
+const { signToken, authMiddleware } = require('./src/auth');
+
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ error: 'Email already registered' });
+    const user = await User.create({ email, password });
+    const token = signToken(user._id);
+    res.json({ token, email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: 'Signup failed' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+    const valid = await user.comparePassword(password);
+    if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+    const token = signToken(user._id);
+    res.json({ token, email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.get('/api/me', authMiddleware, async (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' });
+  const user = await User.findById(req.userId).select('email createdAt');
+  res.json(user);
 });
 
 const PORT = process.env.PORT || 3000;
