@@ -13,12 +13,12 @@ const findingSchema = new mongoose.Schema({
 });
 
 const synthesisSchema = new mongoose.Schema({
-  goal: String,
+  topic: String,
   content: String,
-  iterations: Number,
-  runId: String,
-  timestamp: { type: Date, default: Date.now },
-  isPublic: { type: Boolean, default: false }
+  findingCount: Number,
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  isPublic: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
 });
 
 const Finding = mongoose.model('Finding', findingSchema);

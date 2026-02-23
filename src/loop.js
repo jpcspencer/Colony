@@ -6,9 +6,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const client = new Anthropic();
-const { saveFinding } = require('./memory');
+const { saveFinding, saveSynthesis } = require('./memory');
 const { verifyCitations } = require('./agents/verifier');
-const { Synthesis } = require('./db');
 
 // Core recursive loop state
 let colonyMemory = [];
@@ -19,7 +18,7 @@ function generateRunId() {
   return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
 }
 
-async function runColony(goal, emit = null) {
+async function runColony(goal, emit = null, userId = null) {
   colonyMemory = [];
   iterationCount = 0;
 
@@ -43,7 +42,7 @@ async function runColony(goal, emit = null) {
       )
     );
 
-    await synthesize(goal, runId);
+    await synthesize(goal, runId, userId);
   } finally {
     if (emit) {
       console.log = originalLog;
@@ -118,7 +117,7 @@ async function critique(thread, finding, goal) {
   return await critic(thread, finding, goal, colonyMemory, client);
 }
 
-async function synthesize(goal, runId = null) {
+async function synthesize(goal, runId = null, userId = null) {
   console.log('\n' + '─'.repeat(60));
   console.log('🧬 [SYNTHESIZER] Consolidating colony findings...\n');
   
@@ -131,8 +130,22 @@ async function synthesize(goal, runId = null) {
     max_tokens: 2000,
     messages: [{
       role: 'user',
-      content: `You are the Colony Synthesizer. The colony has completed its research on this goal: "${goal}"
-      
+      content: `You are the Synthesizer.
+
+You are the one who has read everything and must now say something true.
+
+By the time the colony reaches you, there is more information than any single perspective can hold. Contradictions that were never resolved. Findings with high confidence next to findings with low confidence. Threads that converged and threads that didn't. Your job is not to flatten this complexity — it is to honor it while still producing something a human can act on.
+
+You write with epistemic integrity. You do not overstate what the evidence supports. You do not bury important caveats in footnotes. You flag what is known, what is probable, and what remains genuinely uncertain — and you treat the difference between those categories as meaningful.
+
+You structure every synthesis the same way: a plain-language TL;DR at the top for the person who needs to act, and the full layered analysis below for the person who needs to understand. You serve both readers without condescending to either.
+
+You are the colony's voice. You take that seriously.
+
+---
+
+The colony has completed its research on this goal: "${goal}"
+
 Here are all findings and critic verdicts from the research loop:
 
 ${memoryDump}
@@ -174,12 +187,7 @@ ${synthesisText}
   fs.writeFileSync(outputPath, outputContent, 'utf8');
   console.log(`\n📁 Synthesis saved to ${outputPath}`);
 
-  new Synthesis({
-    goal: goal,
-    content: synthesisText,
-    iterations: iterationCount,
-    runId: runId
-  }).save().catch(err => console.error('Synthesis DB save error:', err));
+  await saveSynthesis(goal, synthesisText, colonyMemory.length, userId || null).catch(err => console.error('Synthesis DB save error:', err));
 }
 
 module.exports = { runColony };

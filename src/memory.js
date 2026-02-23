@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { Finding } = require('./db');
+const { Finding, Synthesis } = require('./db');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const KNOWLEDGE_FILE = path.join(DATA_DIR, 'knowledge-graph.json');
@@ -97,4 +97,16 @@ function queryMemory(domain) {
     .map(({ entry }) => entry);
 }
 
-module.exports = { saveFinding, loadMemory, queryMemory };
+async function saveSynthesis(topic, content, findingCount, userId = null) {
+  const isPublic = !userId;
+  const synthesis = new Synthesis({
+    topic,
+    content,
+    findingCount,
+    userId,
+    isPublic
+  });
+  await synthesis.save();
+}
+
+module.exports = { saveFinding, loadMemory, queryMemory, saveSynthesis };

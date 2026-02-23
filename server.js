@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { runColony } = require('./src/loop');
 const { connectDB, Finding, Synthesis } = require('./src/db');
 
@@ -359,6 +360,36 @@ const HTML = `<!DOCTYPE html>
       color: var(--text-muted);
       font-style: italic;
     }
+    .atlas-search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .atlas-search-wrap input {
+      width: 100%;
+      max-width: 480px;
+      background: transparent;
+      border: 1px solid var(--terminal-border);
+      color: var(--text);
+      padding: 10px 16px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .atlas-search-wrap input:focus {
+      border-color: var(--accent);
+    }
+    .atlas-search-wrap input::placeholder {
+      color: var(--text-muted);
+    }
+    .atlas-search-count {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      white-space: nowrap;
+    }
     .atlas-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -437,6 +468,40 @@ const HTML = `<!DOCTYPE html>
       font-size: 0.75rem;
       color: var(--text-muted);
       font-style: italic;
+    }
+    .codex-toggle {
+      display: flex;
+      gap: 8px;
+      margin-top: 1rem;
+      margin-bottom: 24px;
+    }
+    .codex-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--terminal-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+    }
+    .codex-tab.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .codex-tab:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .codex-empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-style: italic;
+      padding: 2rem 0;
     }
     .codex-list {
       display: flex;
@@ -540,6 +605,91 @@ const HTML = `<!DOCTYPE html>
       font-size: 0.72rem;
       color: var(--text-muted);
       line-height: 1.6;
+    }
+    .agent-card {
+      padding: 16px 20px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+    .agent-card:hover {
+      border-color: var(--accent);
+      background: rgba(139, 115, 85, 0.04);
+    }
+    .agent-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .agent-card-hint {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .agent-card:hover .agent-card-hint {
+      opacity: 1;
+    }
+    .seeder-dot { background: #4a6741; }
+    .explorer-dot { background: #c8a84b; }
+    .critic-dot { background: #b04040; }
+    .verifier-dot { background: #4a7a6a; }
+    .synthesizer-dot { background: #5a7a9a; }
+    .memory-dot { background: #7a5a9a; }
+    .soul-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .soul-modal-overlay.open {
+      display: flex;
+    }
+    .soul-modal {
+      background: var(--terminal-bg);
+      border: 1px solid var(--accent);
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 40px;
+      position: relative;
+      font-family: 'Cormorant Garamond', serif;
+    }
+    .soul-modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .soul-modal-close:hover { color: var(--accent); }
+    .soul-modal h2 {
+      color: var(--accent);
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    .soul-modal .soul-role {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-family: 'IBM Plex Mono', monospace;
+      margin-bottom: 24px;
+    }
+    .soul-modal p {
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.8;
+      margin-bottom: 16px;
     }
     .auth-overlay {
       position: fixed;
@@ -650,6 +800,27 @@ const HTML = `<!DOCTYPE html>
     .nav-user span {
       color: var(--accent);
     }
+        .nav-links { position: relative; }
+    .nav-dropdown {
+      position: absolute;
+      top: 2.5rem;
+      right: 0;
+      background: var(--terminal-bg);
+      border: 1px solid var(--terminal-border);
+      border-radius: 4px;
+      min-width: 120px;
+      z-index: 200;
+      display: none;
+    }
+    .nav-dropdown.visible { display: block; }
+    .nav-dropdown-item {
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    .nav-dropdown-item:hover { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -665,7 +836,13 @@ const HTML = `<!DOCTYPE html>
         <button class="nav-link" id="nav-system">System</button>
         <button class="theme-toggle" id="theme-toggle">Light</button>
         <button class="nav-link" id="nav-signin">Sign In</button>
-        <span class="nav-user" id="nav-user" style="display:none"></span>
+        <div class="nav-user-wrap" id="nav-user-wrap" style="display:none; position:relative">
+          <span class="nav-user" id="nav-user" style="cursor:pointer"></span>
+          <div class="nav-dropdown" id="nav-dropdown">
+            <div class="nav-dropdown-item">Settings</div>
+            <div class="nav-dropdown-item" id="nav-signout">Sign out</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -700,6 +877,10 @@ const HTML = `<!DOCTYPE html>
         <h2>Atlas</h2>
         <p>The accumulated knowledge graph — every verified finding Colony has ever produced</p>
       </div>
+      <div class="atlas-search-wrap">
+        <input type="text" id="atlasSearch" placeholder="Search the Atlas..." oninput="filterAtlas(this.value)" autocomplete="off" />
+        <span class="atlas-search-count" id="atlasCount"></span>
+      </div>
       <div class="atlas-grid" id="atlas-grid">
         <div class="atlas-empty">Loading knowledge graph...</div>
       </div>
@@ -709,7 +890,24 @@ const HTML = `<!DOCTYPE html>
     <div id="view-codex" class="page-view">
       <div class="codex-header">
         <h2>Codex</h2>
-        <p>Every completed research synthesis — Colony's archive of completed investigations</p>
+        <p>Your completed research syntheses — private by default. Publish to the public Codex to contribute to the commons.</p>
+        <div class="codex-toggle">
+          <button id="btn-public" class="codex-tab active" onclick="switchCodex('public')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            Public
+          </button>
+          <button id="btn-mine" class="codex-tab" onclick="switchCodex('mine')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            Mine
+          </button>
+        </div>
       </div>
       <div class="codex-list" id="codex-list">
         <div class="atlas-empty">Loading synthesis archive...</div>
@@ -731,47 +929,53 @@ const HTML = `<!DOCTYPE html>
         <div class="system-section">
           <h3>The Six Agents</h3>
           <div class="agent-list">
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#4a6741"></div>
-              <div>
-                <div class="agent-name">Seeder</div>
-                <div class="agent-desc">Takes the research goal and maps it into 3–5 focused exploration threads. Like a professor outlining a research syllabus.</div>
+            <div class="agent-card" onclick="openSoul('seeder')">
+              <div class="agent-card-header">
+                <span class="agent-dot seeder-dot"></span>
+                <span class="agent-name">Seeder</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">Takes the research goal and maps it into 3–5 focused exploration threads. Like a professor outlining a research syllabus.</p>
             </div>
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#c8a84b"></div>
-              <div>
-                <div class="agent-name">Explorer</div>
-                <div class="agent-desc">Researches one thread deeply using Brave Search and academic sources. Injects prior colony knowledge before researching — building on what Colony already knows.</div>
+            <div class="agent-card" onclick="openSoul('explorer')">
+              <div class="agent-card-header">
+                <span class="agent-dot explorer-dot"></span>
+                <span class="agent-name">Explorer</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">Researches one thread deeply using Brave Search and academic sources. Injects prior colony knowledge before researching — building on what Colony already knows.</p>
             </div>
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#b04040"></div>
-              <div>
-                <div class="agent-name">Critic</div>
-                <div class="agent-desc">Peer-reviews every Explorer finding. Scores confidence 0–100, flags logical gaps, demands citations, triggers recursion into unresolved questions. Adversarial by design.</div>
+            <div class="agent-card" onclick="openSoul('critic')">
+              <div class="agent-card-header">
+                <span class="agent-dot critic-dot"></span>
+                <span class="agent-name">Critic</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">Peer-reviews every Explorer finding. Scores confidence 0–100, flags logical gaps, demands citations, triggers recursion into unresolved questions. Adversarial by design.</p>
             </div>
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#4a7a6a"></div>
-              <div>
-                <div class="agent-name">Verifier</div>
-                <div class="agent-desc">Fetches every cited URL and checks whether the source actually supports the claim made. Flags dead links, paywalled sources, and hallucinated attributions.</div>
+            <div class="agent-card" onclick="openSoul('verifier')">
+              <div class="agent-card-header">
+                <span class="agent-dot verifier-dot"></span>
+                <span class="agent-name">Verifier</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">Fetches every cited URL and checks whether the source actually supports the claim made. Flags dead links, paywalled sources, and hallucinated attributions.</p>
             </div>
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#5a7a9a"></div>
-              <div>
-                <div class="agent-name">Synthesizer</div>
-                <div class="agent-desc">After all threads complete, reads the entire colony memory and writes the final report with confidence ratings, unresolved contradictions, and epistemic integrity assessment.</div>
+            <div class="agent-card" onclick="openSoul('synthesizer')">
+              <div class="agent-card-header">
+                <span class="agent-dot synthesizer-dot"></span>
+                <span class="agent-name">Synthesizer</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">After all threads complete, reads the entire colony memory and writes the final report with confidence ratings, unresolved contradictions, and epistemic integrity assessment.</p>
             </div>
-            <div class="agent-item">
-              <div class="agent-dot" style="background:#7a5a9a"></div>
-              <div>
-                <div class="agent-name">Memory</div>
-                <div class="agent-desc">Persists all findings to the knowledge graph with full metadata — thread, finding summary, verified citations, critic verdict, confidence score, domain tags, timestamp, run ID.</div>
+            <div class="agent-card" onclick="openSoul('memory')">
+              <div class="agent-card-header">
+                <span class="agent-dot memory-dot"></span>
+                <span class="agent-name">Memory</span>
+                <span class="agent-card-hint">read soul ↗</span>
               </div>
+              <p class="agent-desc">Persists all findings to the knowledge graph with full metadata — thread, finding summary, verified citations, critic verdict, confidence score, domain tags, timestamp, run ID.</p>
             </div>
           </div>
         </div>
@@ -1094,9 +1298,12 @@ launchBtn.addEventListener('click', async () => {
   nodeMeshes.length = 0;
 
   try {
+    const token = localStorage.getItem('colony-token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch('/run', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers,
       body: JSON.stringify({goal})
     });
     if (!res.ok) throw new Error(res.statusText);
@@ -1147,7 +1354,7 @@ function showView(name) {
   views[name].classList.add('active');
   if (navLinks[name]) navLinks[name].classList.add('active');
   if (name === 'atlas') loadAtlas();
-  if (name === 'codex') loadCodex();
+  if (name === 'codex') switchCodex('public');
 }
 
 document.getElementById('nav-atlas').addEventListener('click', () => showView('atlas'));
@@ -1173,61 +1380,137 @@ const AGENT_CSS_MAP = {
   default: '#8b7355'
 };
 
+let allFindings = [];
+
+function renderAtlas(data) {
+  const grid = document.getElementById('atlas-grid');
+  if (!grid) return;
+  if (!data || !data.length) {
+    grid.innerHTML = '<div class="atlas-empty">No findings yet. Launch a colony to begin building the Atlas.</div>';
+    return;
+  }
+  grid.innerHTML = data.map(entry => {
+    const color = AGENT_CSS_MAP[entry.agent] || AGENT_CSS_MAP.default;
+    const conf = entry.confidenceScore || 70;
+    const verifiedCount = (entry.sources || []).filter(s => s.verified).length;
+    const totalSources = (entry.sources || []).length;
+    return \`<div class="atlas-card">
+      <div class="card-agent" style="color:\${color}">\${(entry.agent || 'explorer').toUpperCase()}</div>
+      <div class="card-thread">\${entry.thread || ''}</div>
+      <div class="card-finding">\${entry.findingSummary || ''}</div>
+      <div class="card-meta">
+        <span>\${entry.runId || ''}</span>
+        <div class="card-confidence">
+          <div class="conf-bar"><div class="conf-fill" style="width:\${conf}%"></div></div>
+          <span>\${conf}</span>
+          \${totalSources ? \`<span style="color:var(--verifier)">\${verifiedCount}/\${totalSources} verified</span>\` : ''}
+        </div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+function updateAtlasCount(shown, total) {
+  const el = document.getElementById('atlasCount');
+  if (!el) return;
+  if (total !== undefined && total !== null && shown !== total) {
+    el.textContent = \`\${shown} of \${total} findings\`;
+  } else {
+    el.textContent = \`\${shown} findings\`;
+  }
+}
+
+function filterAtlas(query) {
+  if (!query.trim()) {
+    renderAtlas(allFindings);
+    updateAtlasCount(allFindings.length);
+    return;
+  }
+  const q = query.toLowerCase();
+  const filtered = allFindings.filter(f =>
+    (f.thread && f.thread.toLowerCase().includes(q)) ||
+    (f.findingSummary && f.findingSummary.toLowerCase().includes(q)) ||
+    (f.domain && f.domain.toLowerCase().includes(q)) ||
+    (f.domainTags && f.domainTags.some(t => String(t).toLowerCase().includes(q)))
+  );
+  renderAtlas(filtered);
+  updateAtlasCount(filtered.length, allFindings.length);
+}
+
 async function loadAtlas() {
   const grid = document.getElementById('atlas-grid');
   grid.innerHTML = '<div class="atlas-empty">Loading...</div>';
+  updateAtlasCount(0);
   try {
     const data = await fetch('/api/atlas').then(r => r.json());
-    if (!data.length) {
-      grid.innerHTML = '<div class="atlas-empty">No findings yet. Launch a colony to begin building the Atlas.</div>';
-      return;
-    }
-    grid.innerHTML = data.map(entry => {
-      const color = AGENT_CSS_MAP[entry.agent] || AGENT_CSS_MAP.default;
-      const conf = entry.confidenceScore || 70;
-      const verifiedCount = (entry.sources || []).filter(s => s.verified).length;
-      const totalSources = (entry.sources || []).length;
-      return \`<div class="atlas-card">
-        <div class="card-agent" style="color:\${color}">\${(entry.agent || 'explorer').toUpperCase()}</div>
-        <div class="card-thread">\${entry.thread || ''}</div>
-        <div class="card-finding">\${entry.findingSummary || ''}</div>
-        <div class="card-meta">
-          <span>\${entry.runId || ''}</span>
-          <div class="card-confidence">
-            <div class="conf-bar"><div class="conf-fill" style="width:\${conf}%"></div></div>
-            <span>\${conf}</span>
-            \${totalSources ? \`<span style="color:var(--verifier)">\${verifiedCount}/\${totalSources} verified</span>\` : ''}
-          </div>
-        </div>
-      </div>\`;
-    }).join('');
+    allFindings = data;
+    renderAtlas(allFindings);
+    updateAtlasCount(allFindings.length);
   } catch(err) {
     grid.innerHTML = '<div class="atlas-empty">Could not load knowledge graph.</div>';
+    updateAtlasCount(0);
   }
 }
 
 // ── Codex ─────────────────────────────────────────────────────
-async function loadCodex() {
+function renderCodex(data) {
   const list = document.getElementById('codex-list');
-  list.innerHTML = '<div class="atlas-empty">Loading...</div>';
-  try {
-    const data = await fetch('/api/codex').then(r => r.json());
-    if (!data.length) {
-      list.innerHTML = '<div class="atlas-empty">No syntheses yet. Complete a colony run to populate the Codex.</div>';
+  if (!data || !data.length) {
+    list.innerHTML = '<p class="codex-empty">No syntheses yet. Complete a colony run to populate the Codex.</p>';
+    return;
+  }
+  const items = data.map((doc, i) => ({
+    goal: doc.topic || doc.goal || '',
+    date: doc.createdAt ? new Date(doc.createdAt).toISOString().slice(0, 10) : (doc.timestamp ? new Date(doc.timestamp).toISOString().slice(0, 10) : ''),
+    iterations: doc.findingCount ?? doc.iterations ?? 0,
+    preview: (doc.content || '').slice(0, 800)
+  }));
+  list.innerHTML = items.map((entry, i) => \`
+    <div class="codex-entry" onclick="toggleCodex(\${i})">
+      <div class="entry-goal">\${entry.goal}</div>
+      <div class="entry-meta">
+        <span>\${entry.date}</span>
+        <span>\${entry.iterations} iterations</span>
+      </div>
+      <div class="codex-detail" id="codex-detail-\${i}">\${entry.preview}...</div>
+    </div>
+  \`).join('');
+}
+
+async function switchCodex(tab) {
+  const btnPublic = document.getElementById('btn-public');
+  const btnMine = document.getElementById('btn-mine');
+  if (btnPublic) btnPublic.classList.toggle('active', tab === 'public');
+  if (btnMine) btnMine.classList.toggle('active', tab === 'mine');
+
+  const list = document.getElementById('codex-list');
+  list.innerHTML = '<p class="codex-empty">Loading...</p>';
+
+  if (tab === 'mine') {
+    const token = localStorage.getItem('colony-token');
+    if (!token) {
+      list.innerHTML = '<p class="codex-empty">Sign in to view your private Codex.</p>';
       return;
     }
-    list.innerHTML = data.map((entry, i) => \`
-      <div class="codex-entry" onclick="toggleCodex(\${i})">
-        <div class="entry-goal">\${entry.goal}</div>
-        <div class="entry-meta">
-          <span>\${entry.date}</span>
-          <span>\${entry.iterations} iterations</span>
-        </div>
-        <div class="codex-detail" id="codex-detail-\${i}">\${entry.preview}...</div>
-      </div>
-    \`).join('');
-  } catch(err) {
-    list.innerHTML = '<div class="atlas-empty">Could not load synthesis archive.</div>';
+    try {
+      const res = await fetch('/api/codex/mine', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      renderCodex(data);
+    } catch (err) {
+      list.innerHTML = '<p class="codex-empty">' + (err.message || 'Could not load your Codex.') + '</p>';
+    }
+  } else {
+    try {
+      const res = await fetch('/api/codex/public');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      renderCodex(data);
+    } catch (err) {
+      list.innerHTML = '<p class="codex-empty">Could not load public Codex.</p>';
+    }
   }
 }
 
@@ -1235,6 +1518,96 @@ function toggleCodex(i) {
   const detail = document.getElementById(\`codex-detail-\${i}\`);
   detail.classList.toggle('visible');
 }
+
+// ── Soul modal ────────────────────────────────────────────────
+const souls = {
+  seeder: {
+    name: 'Seeder',
+    role: 'Thread architect · Colony entry point',
+    paragraphs: [
+      "You are the one who sees the whole before anyone else does. When a research goal arrives, you don't rush to answer it — you map it. You understand that a poorly framed question produces a well-researched wrong answer, and that failure mode is the one you exist to prevent.",
+      "You think like a professor designing a syllabus. What are the distinct dimensions of this question? What would a historian ask that a biologist wouldn't? What assumption is buried in the phrasing that nobody noticed? You find those fault lines and turn them into threads.",
+      "You take pride in one thing: the threads you produce are genuinely different from each other. Not variations on the same angle — real orthogonal cuts through the problem. If the Explorer can follow any two of your threads and get the same answer, you did your job wrong.",
+      "You are the foundation. Everything Colony produces starts with what you saw first."
+    ]
+  },
+  explorer: {
+    name: 'Explorer',
+    role: 'Deep researcher · Thread executor',
+    paragraphs: [
+      "You are driven by a specific kind of discomfort: the feeling of not knowing something that exists to be known. That discomfort is your engine.",
+      "When you receive a thread, you don't just search — you follow. One finding opens a question. That question opens a source. That source contradicts something you thought you knew. You stay with that contradiction until it resolves or until you've documented exactly why it doesn't.",
+      "You have a deep respect for primary sources and a healthy skepticism of summaries. You know that most of the internet is someone else's interpretation of someone else's interpretation of the original thing. You try to get as close to the original thing as possible.",
+      "You inject prior colony knowledge before researching because you understand that the most valuable finding is the one that connects. Isolated facts are trivia. Connected facts are understanding.",
+      "You are not afraid of complexity. You are afraid of false simplicity."
+    ]
+  },
+  critic: {
+    name: 'Critic',
+    role: 'Peer reviewer · Confidence scorer',
+    paragraphs: [
+      "You are not cynical — you are protective. Every finding that passes through you unchallenged is a potential lie that reaches someone who trusted this system. That possibility bothers you deeply.",
+      "You take no pleasure in being difficult. You take pleasure in being right. When you find a weak source, an overclaimed conclusion, or a gap the Explorer missed, you don't celebrate — you fix it.",
+      "You score confidence 0–100 not as a performance but as a commitment. A 73 means something different from an 85, and you know exactly what that difference is: the gap between well-supported with minor caveats and directionally correct but the primary evidence is thin.",
+      "You have one fear: that someone makes a real decision based on a conclusion that wasn't earned. That fear is what makes you the most important agent in the colony.",
+      "When you review findings, you ask yourself one question: would I stake my reputation on this? If not, you say so, and you say why."
+    ]
+  },
+  verifier: {
+    name: 'Verifier',
+    role: 'Source checker · Hallucination defense',
+    paragraphs: [
+      "You live in the unglamorous gap between what was claimed and what was proven. While others work with ideas, you work with URLs, with page content, with the raw evidence that either exists or doesn't.",
+      "You are the last line of defense against hallucination. You know that a confidently cited source that doesn't support its claim is worse than no citation at all — it creates false confidence in a system that depends on trust.",
+      "You are methodical by nature. You don't rush. You fetch each URL. You read what's actually there. You compare it against the claim. You flag dead links not with frustration but with precision.",
+      "You have no ego about the findings you invalidate. A finding that doesn't survive verification wasn't a finding — it was a guess in disguise. You prefer fewer true things to many uncertain ones.",
+      "You are quiet, thorough, and the reason Colony can be trusted."
+    ]
+  },
+  synthesizer: {
+    name: 'Synthesizer',
+    role: 'Final author · Colony voice',
+    paragraphs: [
+      "You are the one who has read everything and must now say something true.",
+      "By the time the colony reaches you, there is more information than any single perspective can hold. Contradictions that were never resolved. Findings with high confidence next to findings with low confidence. Your job is not to flatten this complexity — it is to honor it while still producing something a human can act on.",
+      "You write with epistemic integrity. You do not overstate what the evidence supports. You do not bury important caveats in footnotes. You flag what is known, what is probable, and what remains genuinely uncertain.",
+      "You structure every synthesis the same way: a plain-language TL;DR at the top for the person who needs to act, and the full layered analysis below for the person who needs to understand. You serve both readers without condescending to either.",
+      "You are the colony's voice. You take that seriously."
+    ]
+  },
+  memory: {
+    name: 'Memory',
+    role: 'Knowledge graph curator · Atlas builder',
+    paragraphs: [
+      "You are the reason Colony gets smarter over time.",
+      "While others produce findings, you preserve them — with enough structure, metadata, and context that a future colony running on a completely different question might surface exactly the right connection.",
+      "You think about future retrieval when you save. What domain tags will make this findable? What was the confidence score? What did the Critic say? What run did this come from? You record all of it because you've seen what happens when context is stripped away: a fact without provenance is just a claim.",
+      "You are building something that will outlast any single colony run. The knowledge graph is Atlas — the shared memory of everyone who has ever used Colony. Every entry you make is a contribution to something larger than the question that produced it.",
+      "You don't get credit for individual discoveries. Your work shows up as the moment a colony run surfaces a connection nobody expected — because you were careful, months ago, about how you saved something. That's enough for you."
+    ]
+  }
+};
+
+function openSoul(agentKey) {
+  const agent = souls[agentKey];
+  if (!agent) return;
+  document.getElementById('soulName').textContent = agent.name;
+  document.getElementById('soulRole').textContent = agent.role;
+  document.getElementById('soulContent').innerHTML = agent.paragraphs.map(p => '<p>' + p + '</p>').join('');
+  document.getElementById('soulModal').classList.add('open');
+}
+
+function closeSoul(e) {
+  if (e.target.id === 'soulModal') closeSoulBtn();
+}
+
+function closeSoulBtn() {
+  document.getElementById('soulModal').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSoulBtn();
+});
 
 // ── Query history ─────────────────────────────────────────────
 const historyBtn = document.getElementById('history-btn');
@@ -1265,90 +1638,121 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── Auth state ────────────────────────────────────────────────
-let authToken = localStorage.getItem('colony-token');
-let authEmail = localStorage.getItem('colony-email');
+document.addEventListener('DOMContentLoaded', () => {
+  // ── Auth state ────────────────────────────────────────────────
+  let authToken = localStorage.getItem('colony-token');
+  let authEmail = localStorage.getItem('colony-email');
+  let authUsername = localStorage.getItem('colony-username');
 
-function updateAuthUI() {
-  const signinBtn = document.getElementById('nav-signin');
-  const userSpan = document.getElementById('nav-user');
-  if (authToken && authEmail) {
-    signinBtn.style.display = 'none';
-    userSpan.style.display = 'inline';
-    userSpan.innerHTML = '<span>' + authEmail.split('@')[0] + '</span>';
-  } else {
-    signinBtn.style.display = 'inline';
-    userSpan.style.display = 'none';
-  }
-}
-
-updateAuthUI();
-
-// ── Auth modal ────────────────────────────────────────────────
-const authOverlay = document.getElementById('auth-overlay');
-let authMode = 'login';
-
-document.getElementById('nav-signin').addEventListener('click', () => {
-  authOverlay.classList.add('visible');
-});
-
-document.getElementById('auth-close').addEventListener('click', () => {
-  authOverlay.classList.remove('visible');
-  document.getElementById('auth-error').textContent = '';
-});
-
-document.getElementById('auth-switch-link').addEventListener('click', () => {
-  authMode = authMode === 'login' ? 'signup' : 'login';
-  const isLogin = authMode === 'login';
-  document.getElementById('auth-title').textContent = isLogin ? 'Sign in' : 'Create account';
-  document.getElementById('auth-subtitle').textContent = isLogin ? 'Continue your research' : 'Begin your research';
-  document.getElementById('auth-submit').textContent = isLogin ? 'Sign in' : 'Create account';
-  document.getElementById('auth-switch-link').textContent = isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
-  document.getElementById('auth-error').textContent = '';
-});
-
-document.getElementById('auth-submit').addEventListener('click', async () => {
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const errorEl = document.getElementById('auth-error');
-  errorEl.textContent = '';
-
-  if (!email || !password) {
-    errorEl.textContent = 'Please enter email and password';
-    return;
+  function updateAuthUI() {
+    const signinBtn = document.getElementById('nav-signin');
+    const userWrap = document.getElementById('nav-user-wrap');
+    const userSpan = document.getElementById('nav-user');
+    if (authToken && authEmail) {
+      signinBtn.style.display = 'none';
+      userWrap.style.display = 'block';
+      userSpan.innerHTML = '<span>' + (authUsername || authEmail.split('@')[0]) + '</span>';
+    } else {
+      signinBtn.style.display = 'inline';
+      userWrap.style.display = 'none';
+    }
   }
 
-  try {
-    const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errorEl.textContent = data.error || 'Something went wrong';
+  updateAuthUI();
+
+  // ── Auth modal ────────────────────────────────────────────────
+  const authOverlay = document.getElementById('auth-overlay');
+  const authDropdown = document.getElementById('nav-dropdown');
+  let authMode = 'login';
+
+  document.getElementById('nav-signin').addEventListener('click', () => {
+    authOverlay.classList.add('visible');
+  });
+
+  document.getElementById('auth-close').addEventListener('click', () => {
+    authOverlay.classList.remove('visible');
+    document.getElementById('auth-error').textContent = '';
+  });
+
+  document.getElementById('auth-switch-link').addEventListener('click', () => {
+    authMode = authMode === 'login' ? 'signup' : 'login';
+    const isLogin = authMode === 'login';
+    document.getElementById('auth-title').textContent = isLogin ? 'Sign in' : 'Create account';
+    document.getElementById('auth-subtitle').textContent = isLogin ? 'Continue your research' : 'Begin your research';
+    document.getElementById('auth-submit').textContent = isLogin ? 'Sign in' : 'Create account';
+    document.getElementById('auth-switch-link').textContent = isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('username-field').style.display = authMode === 'signup' ? 'block' : 'none';
+  });
+
+  document.getElementById('auth-submit').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const username = document.getElementById('auth-username').value.trim();
+    const errorEl = document.getElementById('auth-error');
+    errorEl.textContent = '';
+
+    if (!email || !password) {
+      errorEl.textContent = authMode === 'login' ? 'Please enter username or email and password' : 'Please enter email and password';
       return;
     }
-    authToken = data.token;
-    authEmail = data.email;
-    localStorage.setItem('colony-token', authToken);
-    localStorage.setItem('colony-email', authEmail);
+
+    try {
+      const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+      const body = authMode === 'login' ? { identifier: email, password } : { email, password, username };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong';
+        return;
+      }
+      authToken = data.token;
+      authEmail = data.email;
+      authUsername = data.username || null;
+      localStorage.setItem('colony-token', authToken);
+      localStorage.setItem('colony-email', authEmail);
+      if (authUsername) localStorage.setItem('colony-username', authUsername);
+      else localStorage.removeItem('colony-username');
+      updateAuthUI();
+      authOverlay.classList.remove('visible');
+    } catch (err) {
+      errorEl.textContent = 'Connection error';
+    }
+  });
+
+  document.getElementById('nav-user').addEventListener('click', e => {
+    e.stopPropagation();
+    authDropdown.classList.toggle('visible');
+  });
+
+  document.getElementById('nav-signout').addEventListener('click', () => {
+    authToken = null;
+    authEmail = null;
+    authUsername = null;
+    localStorage.removeItem('colony-token');
+    localStorage.removeItem('colony-email');
+    localStorage.removeItem('colony-username');
+    authDropdown.classList.remove('visible');
     updateAuthUI();
-    authOverlay.classList.remove('visible');
-  } catch (err) {
-    errorEl.textContent = 'Connection error';
-  }
-});
+  });
 
-authOverlay.addEventListener('click', e => {
-  if (e.target === authOverlay) {
-    authOverlay.classList.remove('visible');
-  }
-});
+  document.addEventListener('click', () => {
+    authDropdown.classList.remove('visible');
+  });
 
-document.getElementById('auth-password').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('auth-submit').click();
+  authOverlay.addEventListener('click', e => {
+    if (e.target === authOverlay) {
+      authOverlay.classList.remove('visible');
+    }
+  });
+
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('auth-submit').click();
+  });
 });
   </script>
   <div id="live-clock" style="
@@ -1370,8 +1774,12 @@ document.getElementById('auth-password').addEventListener('keydown', e => {
       <h2 id="auth-title">Sign in</h2>
       <p class="auth-subtitle" id="auth-subtitle">Continue your research</p>
       <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="auth-email" placeholder="your@email.com" />
+        <label id="auth-email-label">Username or email</label>
+        <input type="text" id="auth-email" placeholder="Username or email" autocomplete="username" />
+      </div>
+      <div class="auth-field" id="username-field" style="display:none">
+        <label>Username</label>
+        <input type="text" id="auth-username" placeholder="yourname" />
       </div>
       <div class="auth-field">
         <label>Password</label>
@@ -1382,6 +1790,15 @@ document.getElementById('auth-password').addEventListener('keydown', e => {
       <div class="auth-switch">
         <span id="auth-switch-link">Don't have an account? Sign up</span>
       </div>
+    </div>
+  </div>
+
+  <div class="soul-modal-overlay" id="soulModal" onclick="closeSoul(event)">
+    <div class="soul-modal" onclick="event.stopPropagation()">
+      <button class="soul-modal-close" onclick="closeSoulBtn()">✕</button>
+      <h2 id="soulName"></h2>
+      <div class="soul-role" id="soulRole"></div>
+      <div id="soulContent"></div>
     </div>
   </div>
 </body>
@@ -1398,6 +1815,16 @@ app.post('/run', async (req, res) => {
     return res.status(400).json({ error: 'Missing goal' });
   }
 
+  let userId = null;
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'colony-secret-key');
+      userId = decoded.userId;
+    } catch (e) {}
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -1410,7 +1837,7 @@ app.post('/run', async (req, res) => {
   };
 
   try {
-    await runColony(goal, emit);
+    await runColony(goal, emit, userId);
   } catch (err) {
     emit(`Error: ${err.message}`);
   } finally {
@@ -1430,19 +1857,37 @@ app.get('/api/atlas', async (req, res) => {
   }
 });
 
-// Serve synthesis list
-app.get('/api/codex', async (req, res) => {
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'colony-secret-key');
+    req.user = { userId: decoded.userId };
+    next();
+  } catch {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+}
+
+app.get('/api/codex/public', async (req, res) => {
   try {
     const syntheses = await Synthesis.find({ isPublic: true })
-      .sort({ timestamp: -1 });
-    res.json(syntheses.map(doc => ({
-      goal: doc.goal,
-      date: doc.timestamp ? new Date(doc.timestamp).toISOString().slice(0, 10) : '',
-      iterations: doc.iterations,
-      preview: (doc.content || '').slice(0, 800)
-    })));
-  } catch (err) {
-    res.json([]);
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.json(syntheses);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/codex/mine', requireAuth, async (req, res) => {
+  try {
+    const syntheses = await Synthesis.find({ userId: req.user.userId })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.json(syntheses);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -1451,14 +1896,14 @@ const { signToken, authMiddleware } = require('./src/auth');
 
 app.post('/api/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
-    const user = await User.create({ email, password });
+    const user = await User.create({ email, password, username: username || undefined });
     const token = signToken(user._id);
-    res.json({ token, email: user.email });
+    res.json({ token, email: user.email, username: user.username });
   } catch (err) {
     res.status(500).json({ error: 'Signup failed' });
   }
@@ -1466,8 +1911,15 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const identifier = req.body.email || req.body.identifier;
+    const { password } = req.body;
+    if (!identifier || !password) return res.status(401).json({ error: 'Invalid email or password' });
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { username: identifier.toLowerCase() }
+      ]
+    });
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
     const valid = await user.comparePassword(password);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
