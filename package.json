@@ -18,6 +18,7 @@
     "express": "^5.2.1",
     "fast-xml-parser": "^5.3.7",
     "jsonwebtoken": "^9.0.3",
+    "marked": "^17.0.3",
     "mongoose": "^9.2.1",
     "node-fetch": "^2.7.0"
   }

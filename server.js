@@ -3,6 +3,7 @@
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const { marked } = require('marked');
 const { runColony } = require('./src/loop');
 const { connectDB, Finding, Synthesis } = require('./src/db');
 
@@ -848,6 +849,36 @@ const HTML = `<!DOCTYPE html>
     .settings-delete-confirm { margin-top: 1rem; display: none; }
     .settings-delete-confirm.visible { display: block; }
     .settings-delete-confirm input { margin-top: 0.5rem; }
+    .share-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px solid #333;
+      color: #888;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 16px;
+    }
+    .share-btn:hover {
+      border-color: #c9a96e;
+      color: #c9a96e;
+    }
+    .beta-disclaimer {
+      text-align: center;
+      font-size: 11px;
+      color: #444;
+      margin-top: 10px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.03em;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #3a3528; border-radius: 0; }
+    ::-webkit-scrollbar-thumb:hover { background: #c9a96e; }
   </style>
 </head>
 <body>
@@ -880,6 +911,7 @@ const HTML = `<!DOCTYPE html>
         <input type="text" id="goal" placeholder="Enter your research goal..." />
         <button id="launch">Launch Colony</button>
       </div>
+      <p class="beta-disclaimer">Colony is free during beta. Each run uses real AI compute — please be thoughtful with queries.</p>
       <div id="history-panel" style="display:none; background:var(--terminal-bg); border:1px solid var(--terminal-border); border-radius:4px; margin-bottom:1rem; max-height:200px; overflow-y:auto;"></div>
       <div class="mode-toggle">
         <button class="mode-btn active" id="btn-stream">Stream</button>
@@ -1541,6 +1573,7 @@ function renderCodex(data) {
     return;
   }
   const items = data.map((doc, i) => ({
+    id: (doc._id || doc.id || '').toString(),
     goal: doc.topic || doc.goal || '',
     date: doc.createdAt ? new Date(doc.createdAt).toISOString().slice(0, 10) : (doc.timestamp ? new Date(doc.timestamp).toISOString().slice(0, 10) : ''),
     iterations: doc.findingCount ?? doc.iterations ?? 0,
@@ -1553,7 +1586,7 @@ function renderCodex(data) {
         <span>\${entry.date}</span>
         <span>\${entry.iterations} iterations</span>
       </div>
-      <div class="codex-detail" id="codex-detail-\${i}">\${marked.parse(entry.content)}</div>
+      <div class="codex-detail" id="codex-detail-\${i}">\${marked.parse(entry.content)}\${entry.id ? \`<button class="share-btn" onclick="event.stopPropagation(); shareSynthesis('\${entry.id}', event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>\` : ''}</div>
     </div>
   \`).join('');
 }
@@ -1598,6 +1631,19 @@ async function switchCodex(tab) {
 function toggleCodex(i) {
   const detail = document.getElementById(\`codex-detail-\${i}\`);
   detail.classList.toggle('visible');
+}
+
+function shareSynthesis(id, evt) {
+  const url = window.location.origin + '/synthesis/' + id;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = (evt && evt.target) ? evt.target.closest('.share-btn') : document.querySelector('.share-btn');
+    if (!btn) return;
+    const original = btn.innerHTML;
+    btn.innerHTML = 'Link copied!';
+    btn.style.borderColor = '#c9a96e';
+    btn.style.color = '#c9a96e';
+    setTimeout(() => { btn.innerHTML = original; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+  });
 }
 
 // ── Soul modal ────────────────────────────────────────────────
@@ -1720,6 +1766,12 @@ updateClock();
 setInterval(updateClock, 1000);
 
 document.addEventListener('DOMContentLoaded', () => {
+  const prefill = sessionStorage.getItem('colony-prefill');
+  if (prefill) {
+    const el = document.getElementById('goal');
+    if (el) { el.value = prefill; }
+    sessionStorage.removeItem('colony-prefill');
+  }
   // ── Auth state ────────────────────────────────────────────────
   let authToken = localStorage.getItem('colony-token');
   let authEmail = localStorage.getItem('colony-email');
@@ -1945,6 +1997,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('auth-password').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('auth-submit').click();
   });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('tab') === 'system') {
+    setTimeout(() => {
+      const systemBtn = document.getElementById('nav-system');
+      if (systemBtn) systemBtn.click();
+    }, 100);
+  }
 });
   </script>
   <div id="live-clock" style="
@@ -1997,8 +2057,434 @@ document.addEventListener('DOMContentLoaded', () => {
 </html>
 `;
 
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function synthesisPageHTML(opts) {
+  const { title, message, content, date, iterations } = opts;
+  const safeTitle = escapeHtml(title);
+  const bodyContent = message
+    ? `<div class="synthesis-message">${escapeHtml(message)}</div>`
+    : `<h1 class="synthesis-title">${safeTitle}</h1>
+       <div class="synthesis-meta">${escapeHtml(date)} · ${escapeHtml(iterations)} iterations</div>
+       <div class="synthesis-body">${content}</div>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title || 'Synthesis')} — Colony</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='8' fill='%230a0a0a'/><text x='50' y='54' font-size='68' font-family='Georgia,serif' fill='%238b7355' text-anchor='middle' dominant-baseline='middle'>C</text></svg>">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a0a0a; color: #ccc; font-family: 'IBM Plex Mono', monospace; font-size: 16px; line-height: 1.9; padding: 48px 24px; min-height: 100vh; }
+    .synthesis-wrap { max-width: 720px; margin: 0 auto; }
+    .synthesis-logo { font-family: 'Cormorant Garamond', serif; font-size: 24px; color: #c9a96e; margin-bottom: 48px; }
+    .synthesis-logo a { color: inherit; text-decoration: none; }
+    .synthesis-logo a:hover { text-decoration: underline; }
+    .synthesis-title { font-family: 'Cormorant Garamond', serif; font-size: 2rem; color: #c9a96e; margin: 0 0 12px; }
+    .synthesis-meta { font-size: 13px; color: #666; margin-bottom: 32px; }
+    .synthesis-body { }
+    .synthesis-body h2 { font-family: 'Cormorant Garamond', serif; color: #c9a96e; font-size: 1.4rem; margin: 1.5em 0 0.5em; }
+    .synthesis-body h3 { color: #aaa; font-size: 1.1rem; margin: 1.2em 0 0.4em; }
+    .synthesis-body strong { color: #e0e0e0; }
+    .synthesis-body pre, .synthesis-body code { background: #111; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    .synthesis-body pre { padding: 16px; overflow-x: auto; }
+    .synthesis-body p { margin: 0.8em 0; }
+    .synthesis-body ul, .synthesis-body ol { margin: 0.8em 0; padding-left: 1.5em; }
+    .synthesis-message { font-size: 18px; color: #888; text-align: center; padding: 80px 24px; }
+    .synthesis-footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid #222; font-size: 12px; color: #444; }
+    .synthesis-footer a { color: #666; text-decoration: none; }
+    .synthesis-footer a:hover { color: #c9a96e; }
+  </style>
+</head>
+<body>
+  <div class="synthesis-wrap">
+    <div class="synthesis-logo"><a href="/">Colony</a></div>
+    ${bodyContent}
+    <div class="synthesis-footer">Researched with <a href="https://usecolony.app" target="_blank" rel="noopener">Colony</a></div>
+  </div>
+</body>
+</html>`;
+}
+
+const LANDING_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colony — Research that argues with itself</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='8' fill='%230a0a0a'/><text x='50' y='54' font-size='68' font-family='Georgia,serif' fill='%238b7355' text-anchor='middle' dominant-baseline='middle'>C</text></svg>">
+  <style>
+    .landing { min-height: 100vh; background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; }
+    .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid #1a1a1a; }
+    .landing-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #c9a96e; font-style: italic; }
+    .landing-nav-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
+    .landing-nav-links a, .landing-nav-links button { background: none; border: none; color: #888; cursor: pointer; font-family: 'Courier New', monospace; font-size: 13px; text-decoration: none; letter-spacing: 0.05em; transition: color 0.2s; }
+    .landing-nav-links a:hover, .landing-nav-links button:hover { color: #c9a96e; }
+    .landing-cta-btn { border: 1px solid #c9a96e !important; color: #c9a96e !important; padding: 8px 18px !important; }
+    .landing-hero { max-width: 720px; margin: 120px auto 80px; padding: 0 48px; text-align: center; }
+    .landing-hero h1 { font-family: 'Cormorant Garamond', serif; font-size: 56px; color: #e8e0d0; font-weight: 300; line-height: 1.2; margin-bottom: 24px; }
+    .landing-sub { font-size: 15px; color: #888; line-height: 1.8; margin-bottom: 40px; max-width: 560px; margin-left: auto; margin-right: auto; }
+    .glow-char { transition: color 0.3s ease, text-shadow 0.3s ease; color: #888; }
+    .glow-char.glowing { color: #c9a96e; text-shadow: 0 0 8px rgba(201, 169, 110, 0.8), 0 0 16px rgba(201, 169, 110, 0.4); }
+    .landing-actions { display: flex; gap: 16px; justify-content: center; align-items: center; }
+    .landing-primary-btn { padding: 12px 28px; background: #c9a96e; color: #0a0a0a; text-decoration: none; font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.05em; transition: opacity 0.2s; }
+    .landing-primary-btn:hover { opacity: 0.85; }
+    a.landing-secondary-btn, button.landing-secondary-btn {
+      color: #888;
+      background: none;
+      border: none;
+      text-decoration: none;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      transition: color 0.2s;
+      letter-spacing: 0.05em;
+      padding: 0;
+    }
+    a.landing-secondary-btn:hover, button.landing-secondary-btn:hover { color: #c9a96e; }
+    .landing-prompts { max-width: 720px; margin: 0 auto 80px; padding: 0 48px; text-align: center; }
+    .landing-prompts-label { font-size: 11px; color: #444; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+    .landing-prompt-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .landing-prompt-pills span { padding: 8px 16px; border: 1px solid #222; color: #666; font-size: 12px; cursor: pointer; transition: all 0.2s; text-align: left; }
+    .landing-prompt-pills span:hover { border-color: #c9a96e; color: #c9a96e; }
+    .landing-agents { max-width: 720px; margin: 0 auto 80px; padding: 0 48px; text-align: center; }
+    .landing-agents-label { font-size: 11px; color: #444; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 24px; }
+    .landing-agent-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+    .landing-agent-chip { padding: 6px 14px; border: 1px solid #333; font-size: 12px; letter-spacing: 0.05em; }
+    .landing-agent-chip.seeder { color: #4caf50; border-color: #4caf50; }
+    .landing-agent-chip.explorer { color: #ff9800; border-color: #ff9800; }
+    .landing-agent-chip.critic { color: #f44336; border-color: #f44336; }
+    .landing-agent-chip.verifier { color: #2196f3; border-color: #2196f3; }
+    .landing-agent-chip.synthesizer { color: #9c27b0; border-color: #9c27b0; }
+    .landing-agent-chip.memory { color: #888; border-color: #888; }
+    .landing-arrow { color: #333; font-size: 16px; }
+    .landing-footer { border-top: 1px solid #1a1a1a; padding: 24px 48px; display: flex; justify-content: space-between; font-size: 11px; color: #444; }
+    .landing-footer a { color: #666; text-decoration: none; }
+    .landing-footer a:hover { color: #c9a96e; }
+    .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .auth-overlay.visible { display: flex; }
+    .auth-modal { background: #0f0e0c; border: 1px solid #3d3529; border-radius: 4px; padding: 2rem; max-width: 360px; width: 90%; position: relative; }
+    .auth-modal h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; color: #c9a96e; margin: 0 0 0.5rem; }
+    .auth-modal .auth-subtitle { font-size: 0.75rem; color: #9a958a; margin-bottom: 1.25rem; }
+    .auth-field { margin-bottom: 1rem; }
+    .auth-field label { display: block; font-size: 0.75rem; color: #9a958a; margin-bottom: 0.35rem; }
+    .auth-field input { width: 100%; padding: 0.75rem; font-family: inherit; background: transparent; border: 1px solid #333; border-radius: 4px; color: #ccc; }
+    .auth-submit { width: 100%; padding: 0.75rem 1.5rem; background: #c9a96e; border: none; border-radius: 4px; color: #0a0a0a; font-family: inherit; font-weight: 600; cursor: pointer; margin-top: 0.5rem; }
+    .auth-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #888; cursor: pointer; font-size: 1.2rem; }
+    .auth-error { color: #b04040; font-size: 0.85rem; margin-top: 0.75rem; }
+    .auth-switch { margin-top: 1.25rem; font-size: 0.75rem; }
+    .auth-switch span { color: #c9a96e; cursor: pointer; }
+    .hiw-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .hiw-overlay.open { display: flex; }
+    .hiw-modal { background: #0e0e0e; border: 1px solid #c9a96e; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 48px; position: relative; font-family: 'Courier New', monospace; }
+    .hiw-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: #555; font-size: 18px; cursor: pointer; }
+    .hiw-close:hover { color: #c9a96e; }
+    .hiw-header { margin-bottom: 32px; }
+    .hiw-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #c9a96e; margin: 0 0 8px; font-weight: 400; }
+    .hiw-sub { font-size: 13px; color: #666; line-height: 1.7; margin: 0; }
+    .hiw-section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid #1a1a1a; }
+    .hiw-section:last-of-type { border-bottom: none; }
+    .hiw-section-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: #c9a96e; margin-bottom: 12px; }
+    .hiw-section p { font-size: 13px; color: #888; line-height: 1.8; margin: 0; }
+    .hiw-agents { display: flex; flex-direction: column; gap: 14px; }
+    .hiw-agent { display: flex; gap: 16px; align-items: flex-start; }
+    .hiw-agent-name { font-size: 12px; letter-spacing: 0.05em; min-width: 90px; padding-top: 1px; flex-shrink: 0; }
+    .hiw-agent-desc { font-size: 12px; color: #666; line-height: 1.7; }
+    .hiw-cta { display: inline-block; margin-top: 8px; padding: 12px 28px; background: #c9a96e; color: #0a0a0a; text-decoration: none; font-size: 13px; letter-spacing: 0.05em; transition: opacity 0.2s; }
+    .hiw-cta:hover { opacity: 0.85; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #3a3528; border-radius: 0; }
+    ::-webkit-scrollbar-thumb:hover { background: #c9a96e; }
+  </style>
+</head>
+<body class="landing">
+  <nav class="landing-nav">
+    <a href="/" class="landing-logo">Colony</a>
+    <div class="landing-nav-links">
+      <a href="/app">Launch</a>
+      <button onclick="showAuthModal('login')">Sign In</button>
+      <button onclick="showAuthModal('signup')" class="landing-cta-btn">Get Started</button>
+    </div>
+  </nav>
+
+  <section class="landing-hero">
+    <h1>Research that argues with itself.</h1>
+    <p class="landing-sub">Colony maps your question into threads, explores each one deeply, then turns a dedicated Critic agent loose on the findings. You get a conclusion that's been stress-tested — not just summarized.</p>
+    <div class="landing-actions">
+      <a href="/app" class="landing-primary-btn">Try Colony</a>
+      <button class="landing-secondary-btn" onclick="openHowItWorks()">See how it works →</button>
+    </div>
+  </section>
+
+  <section class="landing-prompts">
+    <p class="landing-prompts-label">People are researching</p>
+    <div class="landing-prompt-pills">
+      <span onclick="goToApp(this)">What supplement stack actually has evidence behind it for a cut?</span>
+      <span onclick="goToApp(this)">What predicts real estate market downturns before they happen?</span>
+      <span onclick="goToApp(this)">What does research say about building an audience from zero?</span>
+      <span onclick="goToApp(this)">What are the most contested claims about AI replacing knowledge workers?</span>
+      <span onclick="goToApp(this)">What does the evidence say about long distance relationships?</span>
+    </div>
+  </section>
+
+  <section class="landing-agents" id="how-it-works">
+    <p class="landing-agents-label">Six agents. One answer.</p>
+    <div class="landing-agent-row">
+      <div class="landing-agent-chip seeder">Seeder</div>
+      <span class="landing-arrow">→</span>
+      <div class="landing-agent-chip explorer">Explorer</div>
+      <span class="landing-arrow">→</span>
+      <div class="landing-agent-chip critic">Critic</div>
+      <span class="landing-arrow">→</span>
+      <div class="landing-agent-chip verifier">Verifier</div>
+      <span class="landing-arrow">→</span>
+      <div class="landing-agent-chip synthesizer">Synthesizer</div>
+      <span class="landing-arrow">→</span>
+      <div class="landing-agent-chip memory">Memory</div>
+    </div>
+  </section>
+
+  <footer class="landing-footer">
+    <span>Colony — recursive research engine</span>
+    <span>Built by <a href="https://jpcspencer.com" target="_blank">Jordan Spencer</a></span>
+  </footer>
+
+  <div class="hiw-overlay" id="hiw-overlay" onclick="if(event.target.id==='hiw-overlay') closeHowItWorks()">
+    <div class="hiw-modal">
+      <button class="hiw-close" onclick="closeHowItWorks()">✕</button>
+      <div class="hiw-header">
+        <h2>How Colony Works</h2>
+        <p class="hiw-sub">A recursive research system built on one idea: answers should be challenged, not just generated.</p>
+      </div>
+      <div class="hiw-section">
+        <div class="hiw-section-label">The Problem</div>
+        <p>Every AI tool you've used gives you an answer. Fast, confident, plausible. But nobody checked it. No one asked whether the sources actually support the claim, or whether a smarter counterargument exists. You got a summary, not a conclusion.</p>
+      </div>
+      <div class="hiw-section">
+        <div class="hiw-section-label">The Loop</div>
+        <div class="hiw-agents">
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#4caf50">Seeder</span>
+            <span class="hiw-agent-desc">Maps your question into 3–5 distinct research threads. Not variations — genuinely different angles.</span>
+          </div>
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#ff9800">Explorer</span>
+            <span class="hiw-agent-desc">Researches each thread deeply using real web search and academic sources. Builds on everything Colony already knows.</span>
+          </div>
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#f44336">Critic</span>
+            <span class="hiw-agent-desc">Peer-reviews every finding. Scores confidence 0–100. Flags weak sources, logical gaps, and overclaimed conclusions. Sends the colony back in if needed.</span>
+          </div>
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#2196f3">Verifier</span>
+            <span class="hiw-agent-desc">Fetches every cited URL and checks whether the source actually supports the claim. Flags dead links and hallucinated attributions.</span>
+          </div>
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#9c27b0">Synthesizer</span>
+            <span class="hiw-agent-desc">Reads the entire colony memory and writes a final report with a plain-language TL;DR and full layered analysis. Flags what's known, probable, and uncertain.</span>
+          </div>
+          <div class="hiw-agent">
+            <span class="hiw-agent-name" style="color:#888">Memory</span>
+            <span class="hiw-agent-desc">Saves every finding to the Atlas — Colony's shared knowledge graph. Every run makes future runs smarter.</span>
+          </div>
+        </div>
+      </div>
+      <div class="hiw-section">
+        <div class="hiw-section-label">The Result</div>
+        <p>A synthesis with confidence scores, verified citations, and honest caveats. Not a chatbot answer — a conclusion that's been argued over. Saved to your private Codex, contributing to a shared Atlas that compounds over time.</p>
+      </div>
+      <a href="/app" class="hiw-cta">Try Colony →</a>
+    </div>
+  </div>
+
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="auth-close">✕</button>
+      <h2 id="auth-title">Sign in</h2>
+      <p class="auth-subtitle" id="auth-subtitle">Continue your research</p>
+      <div class="auth-field">
+        <label id="auth-email-label">Username or email</label>
+        <input type="text" id="auth-email" placeholder="Username or email" autocomplete="username" />
+      </div>
+      <div class="auth-field" id="username-field" style="display:none">
+        <label>Username</label>
+        <input type="text" id="auth-username" placeholder="yourname" />
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="••••••••" />
+      </div>
+      <button class="auth-submit" id="auth-submit">Sign in</button>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-switch">
+        <span id="auth-switch-link">Don't have an account? Sign up</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goToApp(el) {
+      const query = el.textContent.trim();
+      sessionStorage.setItem('colony-prefill', query);
+      window.location.href = '/app';
+    }
+    function showAuthModal(mode) {
+      authMode = mode;
+      document.getElementById('auth-overlay').classList.add('visible');
+      const isLogin = mode === 'login';
+      document.getElementById('auth-title').textContent = isLogin ? 'Sign in' : 'Create account';
+      document.getElementById('auth-subtitle').textContent = isLogin ? 'Continue your research' : 'Begin your research';
+      document.getElementById('auth-submit').textContent = isLogin ? 'Sign in' : 'Create account';
+      document.getElementById('auth-switch-link').textContent = isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
+      document.getElementById('auth-email-label').textContent = isLogin ? 'Username or email' : 'Email';
+      document.getElementById('auth-email').placeholder = isLogin ? 'Username or email' : 'Email';
+      document.getElementById('username-field').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('auth-error').textContent = '';
+    }
+    document.getElementById('auth-close').addEventListener('click', () => {
+      document.getElementById('auth-overlay').classList.remove('visible');
+    });
+    document.getElementById('auth-overlay').addEventListener('click', e => {
+      if (e.target.id === 'auth-overlay') document.getElementById('auth-overlay').classList.remove('visible');
+    });
+    let authMode = 'login';
+    document.getElementById('auth-switch-link').addEventListener('click', () => {
+      authMode = authMode === 'login' ? 'signup' : 'login';
+      showAuthModal(authMode);
+    });
+    document.getElementById('auth-submit').addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const username = document.getElementById('auth-username').value.trim();
+      const errorEl = document.getElementById('auth-error');
+      errorEl.textContent = '';
+      if (!email || !password) {
+        errorEl.textContent = authMode === 'login' ? 'Please enter username or email and password' : 'Please enter email and password';
+        return;
+      }
+      try {
+        const endpoint = authMode === 'login' ? '/api/login' : '/api/signup';
+        const body = authMode === 'login' ? { identifier: email, password } : { email, password, username };
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) { errorEl.textContent = data.error || 'Something went wrong'; return; }
+        localStorage.setItem('colony-token', data.token);
+        localStorage.setItem('colony-email', data.email);
+        if (data.username) localStorage.setItem('colony-username', data.username);
+        else localStorage.removeItem('colony-username');
+        window.location.href = '/app';
+      } catch (err) { errorEl.textContent = 'Connection error'; }
+    });
+    document.getElementById('auth-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('auth-submit').click();
+    });
+    function openHowItWorks() {
+      document.getElementById('hiw-overlay').classList.add('open');
+    }
+    function closeHowItWorks() {
+      document.getElementById('hiw-overlay').classList.remove('open');
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeHowItWorks();
+    });
+    function checkLandingAuth() {
+      const token = localStorage.getItem('colony-token');
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const username = localStorage.getItem('colony-username') || payload.username || payload.userId;
+        const signInBtn = document.querySelector('.landing-nav-links button:first-of-type');
+        if (signInBtn) signInBtn.style.display = 'none';
+        const ctaBtn = document.querySelector('.landing-cta-btn');
+        if (ctaBtn) {
+          ctaBtn.textContent = username || 'You';
+          ctaBtn.onclick = () => window.location.href = '/app';
+        }
+      } catch(e) {}
+    }
+    checkLandingAuth();
+  </script>
+  <script>
+    (function() {
+      const para = document.querySelector('.landing-sub');
+      if (!para) return;
+      const text = para.textContent;
+      para.innerHTML = text.split('').map((char) =>
+        char === ' ' ? ' ' : '<span class="glow-char">' + char + '</span>'
+      ).join('');
+      function glowRandom() {
+        const chars = document.querySelectorAll('.glow-char');
+        if (!chars.length) return;
+        const count = Math.floor(Math.random() * 3) + 2;
+        const indices = [];
+        while (indices.length < count) {
+          const idx = Math.floor(Math.random() * chars.length);
+          if (!indices.includes(idx)) indices.push(idx);
+        }
+        indices.forEach(idx => {
+          chars[idx].classList.add('glowing');
+          setTimeout(() => chars[idx].classList.remove('glowing'), 800 + Math.random() * 400);
+        });
+        setTimeout(glowRandom, 150 + Math.random() * 200);
+      }
+      glowRandom();
+    })();
+  </script>
+</body>
+</html>`;
+
 app.get('/', (req, res) => {
+  res.type('html').send(LANDING_HTML);
+});
+
+app.get('/app', (req, res) => {
   res.type('html').send(HTML);
+});
+
+app.get('/synthesis/:id', async (req, res) => {
+  try {
+    const synth = await Synthesis.findById(req.params.id);
+    if (!synth) {
+      return res.type('html').send(synthesisPageHTML({ title: 'Synthesis not found', message: 'Synthesis not found' }));
+    }
+    if (!synth.isPublic) {
+      let isOwner = false;
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        try {
+          const token = authHeader.split(' ')[1];
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'colony-secret-key');
+          isOwner = synth.userId && synth.userId.toString() === decoded.userId;
+        } catch (e) {}
+      }
+      if (!isOwner) {
+        return res.type('html').send(synthesisPageHTML({ title: 'Private', message: 'This synthesis is private' }));
+      }
+    }
+    const topic = synth.topic || synth.goal || 'Synthesis';
+    const date = synth.createdAt ? new Date(synth.createdAt).toISOString().slice(0, 10) : '';
+    const iterations = synth.findingCount ?? synth.iterations ?? 0;
+    const content = marked.parse(synth.content || '');
+    res.type('html').send(synthesisPageHTML({ title: topic, content, date, iterations }));
+  } catch (e) {
+    res.status(500).type('html').send(synthesisPageHTML({ title: 'Error', message: 'Something went wrong' }));
+  }
 });
 
 app.post('/run', async (req, res) => {
