@@ -885,6 +885,17 @@ const HTML = `<!DOCTYPE html>
       font-family: 'Courier New', monospace;
       letter-spacing: 0.03em;
     }
+    .app-beta-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: #444;
+      border: 1px solid #333;
+      padding: 2px 6px;
+      vertical-align: middle;
+      letter-spacing: 0.08em;
+      font-style: normal;
+      font-weight: 400;
+    }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0a0a0a; }
     ::-webkit-scrollbar-thumb { background: #3a3528; border-radius: 0; }
@@ -907,7 +918,7 @@ const HTML = `<!DOCTYPE html>
   <div class="container">
     <div class="top-bar">
       <div>
-        <h1>Colony</h1>
+        <h1>Colony <span class="app-beta-badge">beta</span></h1>
         <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
       <div class="nav-links">
@@ -2195,8 +2206,8 @@ const LANDING_HTML = `<!DOCTYPE html>
   <style>
     .landing { min-height: 100vh; background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; }
     .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid #1a1a1a; }
-    .landing-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #c9a96e; font-style: italic; }
-    .beta-badge { font-family: 'Courier New', monospace; font-size: 11px; color: #666; border: 1px solid #333; padding: 2px 6px; border-radius: 3px; vertical-align: middle; margin-left: 8px; letter-spacing: 0.08em; font-style: normal; }
+    .landing-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #c9a96e; font-style: italic; text-decoration: none; }
+    .beta-badge { font-family: 'Courier New', monospace; font-size: 10px; color: #444; padding: 2px 6px; vertical-align: middle; margin-left: 2px; letter-spacing: 0.08em; font-style: normal; border: 1px solid #2a2a2a; }
     .landing-nav-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
     .landing-nav-links a, .landing-nav-links button { background: none; border: none; color: #888; cursor: pointer; font-family: 'Courier New', monospace; font-size: 13px; text-decoration: none; letter-spacing: 0.05em; transition: color 0.2s; }
     .landing-nav-links a:hover, .landing-nav-links button:hover { color: #c9a96e; }

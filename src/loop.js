@@ -42,7 +42,7 @@ async function runColony(goal, emit = null, userId = null, defaultPublic = false
       )
     );
 
-    await synthesize(goal, runId, userId);
+    await synthesize(goal, runId, userId, defaultPublic);
   } finally {
     if (emit) {
       console.log = originalLog;
@@ -117,7 +117,7 @@ async function critique(thread, finding, goal) {
   return await critic(thread, finding, goal, colonyMemory, client);
 }
 
-async function synthesize(goal, runId = null, userId = null) {
+async function synthesize(goal, runId = null, userId = null, defaultPublic = false) {
   console.log('\n' + '─'.repeat(60));
   console.log('🧬 [SYNTHESIZER] Consolidating colony findings...\n');
   
