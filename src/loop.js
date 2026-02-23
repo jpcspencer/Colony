@@ -18,7 +18,7 @@ function generateRunId() {
   return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
 }
 
-async function runColony(goal, emit = null, userId = null) {
+async function runColony(goal, emit = null, userId = null, defaultPublic = false) {
   colonyMemory = [];
   iterationCount = 0;
 
@@ -187,7 +187,7 @@ ${synthesisText}
   fs.writeFileSync(outputPath, outputContent, 'utf8');
   console.log(`\n📁 Synthesis saved to ${outputPath}`);
 
-  await saveSynthesis(goal, synthesisText, colonyMemory.length, userId || null).catch(err => console.error('Synthesis DB save error:', err));
+  await saveSynthesis(goal, synthesisText, colonyMemory.length, userId || null, defaultPublic).catch(err => console.error('Synthesis DB save error:', err));
 }
 
 module.exports = { runColony };

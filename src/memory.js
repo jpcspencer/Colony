@@ -97,8 +97,8 @@ function queryMemory(domain) {
     .map(({ entry }) => entry);
 }
 
-async function saveSynthesis(topic, content, findingCount, userId = null) {
-  const isPublic = !userId;
+async function saveSynthesis(topic, content, findingCount, userId = null, defaultPublic = false) {
+  const isPublic = userId ? defaultPublic : true;
   const synthesis = new Synthesis({
     topic,
     content,

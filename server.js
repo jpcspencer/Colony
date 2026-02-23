@@ -22,6 +22,7 @@ const HTML = `<!DOCTYPE html>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='8' fill='%230a0a0a'/><text x='50' y='54' font-size='68' font-family='Georgia,serif' fill='%238b7355' text-anchor='middle' dominant-baseline='middle'>C</text></svg>">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -533,16 +534,18 @@ const HTML = `<!DOCTYPE html>
     }
     .codex-detail {
       display: none;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--terminal-border);
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      line-height: 1.7;
-      white-space: pre-wrap;
-      max-height: 300px;
+      max-height: 500px;
       overflow-y: auto;
+      padding: 20px;
+      line-height: 1.8;
+      font-size: 14px;
+      color: #ccc;
+      border-top: 1px solid #222;
+      margin-top: 12px;
     }
+    .codex-detail h1, .codex-detail h2, .codex-detail h3 { font-family: 'Cormorant Garamond', Georgia, serif; margin: 0.75em 0 0.4em; color: var(--text); }
+    .codex-detail p { margin: 0.5em 0; }
+    .codex-detail ul, .codex-detail ol { margin: 0.5em 0; padding-left: 1.25em; }
     .codex-detail.visible { display: block; }
     .system-content {
       max-height: 520px;
@@ -821,6 +824,30 @@ const HTML = `<!DOCTYPE html>
       letter-spacing: 0.05em;
     }
     .nav-dropdown-item:hover { color: var(--accent); }
+    .settings-page { max-width: 560px; margin: 0 auto; }
+    .settings-section { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #222; }
+    .settings-section:last-of-type { border-bottom: none; }
+    .settings-section-title { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #c9a96e; margin-bottom: 1rem; }
+    .settings-account-row { display: flex; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem; color: #ccc; }
+    .settings-account-label { color: #9a958a; min-width: 80px; }
+    .settings-form .settings-field { margin-bottom: 1rem; }
+    .settings-form input { width: 100%; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.9rem; background: transparent; border: 1px solid #333; border-radius: 4px; color: #ccc; }
+    .settings-form input:focus { outline: none; border-color: #c9a96e; }
+    .settings-form label { display: block; font-size: 0.75rem; color: #9a958a; margin-bottom: 0.35rem; }
+    .settings-msg { font-size: 0.85rem; margin-top: 0.75rem; min-height: 1.2em; }
+    .settings-msg.success { color: #4a6741; }
+    .settings-msg.error { color: #b04040; }
+    .settings-toggle-wrap { display: flex; align-items: center; gap: 1rem; }
+    .settings-toggle { display: flex; border: 1px solid #333; border-radius: 4px; overflow: hidden; }
+    .settings-toggle-btn { padding: 0.5rem 1rem; font-size: 0.8rem; background: transparent; border: none; color: #9a958a; cursor: pointer; }
+    .settings-toggle-btn.active { background: #333; color: #c9a96e; }
+    .settings-toggle-btn:hover:not(.active) { color: #ccc; }
+    .settings-danger { background: #3a0000; border: 1px solid #8b0000; border-radius: 4px; padding: 1.5rem; margin-top: 1rem; }
+    .settings-danger-btn { background: #8b0000; color: #fff; border: 1px solid #8b0000; padding: 0.6rem 1.2rem; font-size: 0.85rem; cursor: pointer; border-radius: 4px; }
+    .settings-danger-btn:hover { filter: brightness(1.2); }
+    .settings-delete-confirm { margin-top: 1rem; display: none; }
+    .settings-delete-confirm.visible { display: block; }
+    .settings-delete-confirm input { margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -839,7 +866,7 @@ const HTML = `<!DOCTYPE html>
         <div class="nav-user-wrap" id="nav-user-wrap" style="display:none; position:relative">
           <span class="nav-user" id="nav-user" style="cursor:pointer"></span>
           <div class="nav-dropdown" id="nav-dropdown">
-            <div class="nav-dropdown-item">Settings</div>
+            <div class="nav-dropdown-item" id="nav-settings">Settings</div>
             <div class="nav-dropdown-item" id="nav-signout">Sign out</div>
           </div>
         </div>
@@ -986,6 +1013,58 @@ const HTML = `<!DOCTYPE html>
           <p>Built by Jordan Spencer (@0xJozen) · February 2026</p>
         </div>
       </div>
+    </div>
+
+    <!-- Settings view -->
+    <div id="view-settings" class="page-view">
+      <div class="settings-page">
+        <h2 style="font-family:'Cormorant Garamond',Georgia,serif;color:#c9a96e;margin-bottom:0.5rem">Settings</h2>
+        <p style="color:#9a958a;font-size:0.9rem;margin-bottom:2rem">Manage your account and preferences</p>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Account Info</div>
+          <div class="settings-account-row"><span class="settings-account-label">Username</span><span id="settings-username">—</span></div>
+          <div class="settings-account-row"><span class="settings-account-label">Email</span><span id="settings-email">—</span></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Change Password</div>
+          <form class="settings-form" id="settings-password-form">
+            <div class="settings-field"><label>Current password</label><input type="password" id="settings-current-pw" autocomplete="current-password" /></div>
+            <div class="settings-field"><label>New password</label><input type="password" id="settings-new-pw" autocomplete="new-password" minlength="8" /></div>
+            <div class="settings-field"><label>Confirm new password</label><input type="password" id="settings-confirm-pw" autocomplete="new-password" minlength="8" /></div>
+            <button type="submit">Update password</button>
+            <div class="settings-msg" id="settings-password-msg"></div>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Default Codex Visibility</div>
+          <div class="settings-toggle-wrap">
+            <span style="font-size:0.85rem;color:#ccc">New syntheses:</span>
+            <div class="settings-toggle" id="settings-visibility-toggle">
+              <button type="button" class="settings-toggle-btn active" data-value="false">Private</button>
+              <button type="button" class="settings-toggle-btn" data-value="true">Public</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Delete Account</div>
+          <div class="settings-danger">
+            <p style="color:#ccc;font-size:0.9rem;margin:0 0 1rem">Permanently delete your account and all private syntheses. This cannot be undone.</p>
+            <button type="button" class="settings-danger-btn" id="settings-delete-btn">Delete my account</button>
+            <div class="settings-delete-confirm" id="settings-delete-confirm">
+              <p style="color:#ccc;font-size:0.85rem;margin-bottom:0.5rem">Type DELETE to confirm:</p>
+              <input type="text" id="settings-delete-input" placeholder="DELETE" style="width:100%;max-width:200px" />
+              <button type="button" class="settings-danger-btn" id="settings-delete-confirm-btn" style="margin-top:0.75rem">Confirm deletion</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        if (typeof window.loadSettings === 'function') window.loadSettings();
+      </script>
     </div>
   </div>
 
@@ -1339,7 +1418,8 @@ const views = {
   main: document.getElementById('view-main'),
   atlas: document.getElementById('view-atlas'),
   codex: document.getElementById('view-codex'),
-  system: document.getElementById('view-system')
+  system: document.getElementById('view-system'),
+  settings: document.getElementById('view-settings')
 };
 
 const navLinks = {
@@ -1349,12 +1429,13 @@ const navLinks = {
 };
 
 function showView(name) {
-  Object.values(views).forEach(v => v.classList.remove('active'));
+  Object.values(views).forEach(v => v && v.classList.remove('active'));
   Object.values(navLinks).forEach(l => l && l.classList.remove('active'));
-  views[name].classList.add('active');
+  if (views[name]) views[name].classList.add('active');
   if (navLinks[name]) navLinks[name].classList.add('active');
   if (name === 'atlas') loadAtlas();
   if (name === 'codex') switchCodex('public');
+  if (name === 'settings' && typeof window.loadSettings === 'function') window.loadSettings();
 }
 
 document.getElementById('nav-atlas').addEventListener('click', () => showView('atlas'));
@@ -1463,7 +1544,7 @@ function renderCodex(data) {
     goal: doc.topic || doc.goal || '',
     date: doc.createdAt ? new Date(doc.createdAt).toISOString().slice(0, 10) : (doc.timestamp ? new Date(doc.timestamp).toISOString().slice(0, 10) : ''),
     iterations: doc.findingCount ?? doc.iterations ?? 0,
-    preview: (doc.content || '').slice(0, 800)
+    content: doc.content || ''
   }));
   list.innerHTML = items.map((entry, i) => \`
     <div class="codex-entry" onclick="toggleCodex(\${i})">
@@ -1472,7 +1553,7 @@ function renderCodex(data) {
         <span>\${entry.date}</span>
         <span>\${entry.iterations} iterations</span>
       </div>
-      <div class="codex-detail" id="codex-detail-\${i}">\${entry.preview}...</div>
+      <div class="codex-detail" id="codex-detail-\${i}">\${marked.parse(entry.content)}</div>
     </div>
   \`).join('');
 }
@@ -1740,6 +1821,117 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
   });
 
+  document.getElementById('nav-settings').addEventListener('click', () => {
+    authDropdown.classList.remove('visible');
+    if (!authToken) {
+      showView('main');
+      return;
+    }
+    showView('settings');
+  });
+
+  async function loadSettings() {
+    const token = localStorage.getItem('colony-token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) { showView('main'); return; }
+      const data = await res.json();
+      document.getElementById('settings-username').textContent = data.username || '—';
+      document.getElementById('settings-email').textContent = data.email || '—';
+      const toggle = document.getElementById('settings-visibility-toggle');
+      toggle.querySelectorAll('.settings-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === String(!!data.defaultPublic));
+      });
+    } catch (_) { showView('main'); }
+  }
+  window.loadSettings = loadSettings;
+
+  document.getElementById('settings-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msgEl = document.getElementById('settings-password-msg');
+    const current = document.getElementById('settings-current-pw').value;
+    const newPw = document.getElementById('settings-new-pw').value;
+    const confirmPw = document.getElementById('settings-confirm-pw').value;
+    msgEl.textContent = '';
+    msgEl.className = 'settings-msg';
+    if (newPw !== confirmPw) {
+      msgEl.textContent = 'New passwords do not match';
+      msgEl.classList.add('error');
+      return;
+    }
+    if (newPw.length < 8) {
+      msgEl.textContent = 'New password must be at least 8 characters';
+      msgEl.classList.add('error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/settings/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('colony-token') },
+        body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        msgEl.textContent = data.error || 'Failed to update password';
+        msgEl.classList.add('error');
+        return;
+      }
+      msgEl.textContent = 'Password updated successfully';
+      msgEl.classList.add('success');
+      document.getElementById('settings-password-form').reset();
+    } catch (_) {
+      msgEl.textContent = 'Connection error';
+      msgEl.classList.add('error');
+    }
+  });
+
+  document.getElementById('settings-visibility-toggle').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.settings-toggle-btn');
+    if (!btn) return;
+    const val = btn.dataset.value === 'true';
+    try {
+      const res = await fetch('/api/settings/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('colony-token') },
+        body: JSON.stringify({ defaultPublic: val })
+      });
+      if (!res.ok) return;
+      document.getElementById('settings-visibility-toggle').querySelectorAll('.settings-toggle-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.value === String(val));
+      });
+    } catch (_) {}
+  });
+
+  document.getElementById('settings-delete-btn').addEventListener('click', () => {
+    document.getElementById('settings-delete-confirm').classList.add('visible');
+  });
+
+  document.getElementById('settings-delete-confirm-btn').addEventListener('click', async () => {
+    if (document.getElementById('settings-delete-input').value !== 'DELETE') return;
+    try {
+      const res = await fetch('/api/settings/delete', {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('colony-token') }
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete account');
+        return;
+      }
+      authToken = null;
+      authEmail = null;
+      authUsername = null;
+      localStorage.removeItem('colony-token');
+      localStorage.removeItem('colony-email');
+      localStorage.removeItem('colony-username');
+      updateAuthUI();
+      showView('main');
+    } catch (_) {
+      alert('Connection error');
+    }
+  });
+
   document.addEventListener('click', () => {
     authDropdown.classList.remove('visible');
   });
@@ -1816,12 +2008,15 @@ app.post('/run', async (req, res) => {
   }
 
   let userId = null;
+  let defaultPublic = false;
   const authHeader = req.headers['authorization'];
   if (authHeader) {
     try {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'colony-secret-key');
       userId = decoded.userId;
+      const user = await User.findById(userId).select('defaultPublic');
+      if (user) defaultPublic = !!user.defaultPublic;
     } catch (e) {}
   }
 
@@ -1837,9 +2032,18 @@ app.post('/run', async (req, res) => {
   };
 
   try {
-    await runColony(goal, emit, userId);
+    await runColony(goal, emit, userId, defaultPublic);
   } catch (err) {
-    emit(`Error: ${err.message}`);
+    const status = err.status ?? err.statusCode ?? err.code;
+    const is429 = status === 429 || status === '429' || (err.message && (String(err.message).includes('429') || String(err.message).toLowerCase().includes('rate limit')));
+    if (is429) {
+      emit('\n> ⚠️ Colony hit the API rate limit mid-run. This is a beta limitation. Please wait a minute and try again.');
+    } else {
+      const msg = err.message && typeof err.message === 'string' && !err.message.trim().startsWith('{')
+        ? err.message
+        : 'An unexpected API error occurred. Please try again.';
+      emit(`\n> ⚠️ Error: ${msg}`);
+    }
   } finally {
     res.end();
   }
@@ -1895,8 +2099,8 @@ const User = require('./src/models/user');
 const { signToken, authMiddleware } = require('./src/auth');
 
 app.post('/api/signup', async (req, res) => {
+  const { email, password, username } = req.body;
   try {
-    const { email, password, username } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     const existing = await User.findOne({ email });
@@ -1905,7 +2109,8 @@ app.post('/api/signup', async (req, res) => {
     const token = signToken(user._id);
     res.json({ token, email: user.email, username: user.username });
   } catch (err) {
-    res.status(500).json({ error: 'Signup failed' });
+    console.error('Signup error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1924,16 +2129,58 @@ app.post('/api/login', async (req, res) => {
     const valid = await user.comparePassword(password);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
     const token = signToken(user._id);
-    res.json({ token, email: user.email });
+    res.json({ token, email: user.email, username: user.username });
   } catch (err) {
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-app.get('/api/me', authMiddleware, async (req, res) => {
-  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' });
-  const user = await User.findById(req.userId).select('email createdAt');
-  res.json(user);
+app.get('/api/me', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('username email defaultPublic');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ username: user.username, email: user.email, defaultPublic: user.defaultPublic || false });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/settings/password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const valid = await user.comparePassword(currentPassword);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    user.password = newPassword;
+    await user.save();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/settings/visibility', requireAuth, async (req, res) => {
+  try {
+    const { defaultPublic } = req.body;
+    await User.findByIdAndUpdate(req.user.userId, { defaultPublic: !!defaultPublic });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/settings/delete', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    await Synthesis.deleteMany({ userId });
+    await User.findByIdAndDelete(userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
