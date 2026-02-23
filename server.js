@@ -867,6 +867,16 @@ const HTML = `<!DOCTYPE html>
       border-color: #c9a96e;
       color: #c9a96e;
     }
+    .codex-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .delete-btn:hover {
+      border-color: #b04040 !important;
+      color: #b04040 !important;
+    }
     .beta-disclaimer {
       text-align: center;
       font-size: 11px;
@@ -879,6 +889,18 @@ const HTML = `<!DOCTYPE html>
     ::-webkit-scrollbar-track { background: #0a0a0a; }
     ::-webkit-scrollbar-thumb { background: #3a3528; border-radius: 0; }
     ::-webkit-scrollbar-thumb:hover { background: #c9a96e; }
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
+      .nav-links { display: flex; flex-wrap: wrap; gap: 0.75rem; width: 100%; }
+      h1 { font-size: 1.75rem; }
+      .subtitle { font-size: 0.85rem; margin-bottom: 1rem; }
+      .input-row { flex-wrap: wrap; gap: 0.5rem; }
+      .input-row input { width: 100%; flex: none; }
+      .input-row button:last-child { width: 100%; }
+      .atlas-grid { grid-template-columns: 1fr; }
+      #live-clock { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -1586,7 +1608,22 @@ function renderCodex(data) {
         <span>\${entry.date}</span>
         <span>\${entry.iterations} iterations</span>
       </div>
-      <div class="codex-detail" id="codex-detail-\${i}">\${marked.parse(entry.content)}\${entry.id ? \`<button class="share-btn" onclick="event.stopPropagation(); shareSynthesis('\${entry.id}', event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>\` : ''}</div>
+      <div class="codex-detail" id="codex-detail-\${i}">\${marked.parse(entry.content)}\${entry.id ? \`
+<div class="codex-actions">
+  <button class="share-btn" onclick="event.stopPropagation(); shareSynthesis('\${entry.id}', event)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+    Share
+  </button>
+  <button class="share-btn rerun-btn" onclick="event.stopPropagation(); rerunSynthesis(\${JSON.stringify(entry.goal || '')})">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+    Re-run
+  </button>
+  <button class="share-btn delete-btn" onclick="event.stopPropagation(); deleteSynthesis('\${entry.id}', this)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+    Delete
+  </button>
+</div>
+\` : ''}</div>
     </div>
   \`).join('');
 }
@@ -1631,6 +1668,33 @@ async function switchCodex(tab) {
 function toggleCodex(i) {
   const detail = document.getElementById(\`codex-detail-\${i}\`);
   detail.classList.toggle('visible');
+}
+
+function rerunSynthesis(goal) {
+  document.getElementById('goal').value = goal;
+  showView('main');
+  window.scrollTo(0, 0);
+}
+
+async function deleteSynthesis(id, btn) {
+  if (!confirm('Delete this synthesis? This cannot be undone.')) return;
+  const token = localStorage.getItem('colony-token');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/synthesis/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete');
+      return;
+    }
+    const card = btn.closest('.codex-entry');
+    if (card) card.remove();
+  } catch (e) {
+    alert('Connection error');
+  }
 }
 
 function shareSynthesis(id, evt) {
@@ -2132,6 +2196,7 @@ const LANDING_HTML = `<!DOCTYPE html>
     .landing { min-height: 100vh; background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; }
     .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid #1a1a1a; }
     .landing-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #c9a96e; font-style: italic; }
+    .beta-badge { font-family: 'Courier New', monospace; font-size: 11px; color: #666; border: 1px solid #333; padding: 2px 6px; border-radius: 3px; vertical-align: middle; margin-left: 8px; letter-spacing: 0.08em; font-style: normal; }
     .landing-nav-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
     .landing-nav-links a, .landing-nav-links button { background: none; border: none; color: #888; cursor: pointer; font-family: 'Courier New', monospace; font-size: 13px; text-decoration: none; letter-spacing: 0.05em; transition: color 0.2s; }
     .landing-nav-links a:hover, .landing-nav-links button:hover { color: #c9a96e; }
@@ -2211,11 +2276,20 @@ const LANDING_HTML = `<!DOCTYPE html>
     ::-webkit-scrollbar-track { background: #0a0a0a; }
     ::-webkit-scrollbar-thumb { background: #3a3528; border-radius: 0; }
     ::-webkit-scrollbar-thumb:hover { background: #c9a96e; }
+    @media (max-width: 600px) {
+      .landing-nav { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px 24px; }
+      .landing-nav-links { gap: 16px; flex-wrap: wrap; }
+      .landing-hero { margin: 60px auto 48px; padding: 0 24px; }
+      .landing-hero h1 { font-size: 36px; }
+      .landing-prompts { padding: 0 24px; }
+      .landing-agents { padding: 0 24px; }
+      .landing-footer { padding: 20px 24px; flex-direction: column; gap: 8px; }
+    }
   </style>
 </head>
 <body class="landing">
   <nav class="landing-nav">
-    <a href="/" class="landing-logo">Colony</a>
+    <a href="/" class="landing-logo">Colony <span class="beta-badge">beta</span></a>
     <div class="landing-nav-links">
       <a href="/app">Launch</a>
       <button onclick="showAuthModal('login')">Sign In</button>
@@ -2655,6 +2729,20 @@ app.post('/api/settings/visibility', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/synthesis/:id', requireAuth, async (req, res) => {
+  try {
+    const synth = await Synthesis.findById(req.params.id);
+    if (!synth) return res.status(404).json({ error: 'Not found' });
+    if (!synth.userId || synth.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    await Synthesis.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
