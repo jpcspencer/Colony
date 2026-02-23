@@ -9,6 +9,10 @@ const client = new Anthropic();
 const { saveFinding, saveSynthesis } = require('./memory');
 const { verifyCitations } = require('./agents/verifier');
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Core recursive loop state
 let colonyMemory = [];
 let iterationCount = 0;
@@ -42,6 +46,7 @@ async function runColony(goal, emit = null, userId = null, defaultPublic = false
       )
     );
 
+    await sleep(3000);
     await synthesize(goal, runId, userId, defaultPublic);
   } finally {
     if (emit) {
@@ -64,6 +69,7 @@ async function recursiveLoop(thread, goal, depth = 0, runId = null) {
     console.log(`📚 [MEMORY] Injecting ${priorFindings.length} prior finding(s) for thread: "${thread}"`);
   }
   console.log(`\n🔍 [EXPLORER] Researching thread: "${thread}" (depth ${depth})`);
+  await sleep(2000);
   const result = await explore(thread, goal, priorFindings);
   const finding = result.text;
   const citations = result.citations || [];
@@ -74,11 +80,13 @@ async function recursiveLoop(thread, goal, depth = 0, runId = null) {
   }
   
   console.log(`\n⚖️  [CRITIC] Evaluating...`);
+  await sleep(2000);
   const verdict = await critique(thread, finding, goal);
   console.log(`\n📊 Verdict:\n${verdict}`);
   
   colonyMemory.push({ thread, finding, verdict, iteration: iterationCount });
 
+  await sleep(1000);
   const verifiedCitations = await verifyCitations(citations, finding);
   const verifiedCount = verifiedCitations.filter(c => c.verified).length;
   const deadLinks = verifiedCitations.filter(c => c.verificationStatus === 'DEAD_LINK').length;
