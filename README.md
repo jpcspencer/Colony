@@ -97,10 +97,3 @@ Open `http://localhost:3000`
 | v1.3 | Nalanda | Upcoming |
 | v2.0 | Babylon | Upcoming |
 
----
-
-## Built by
-
-[Jordan Spencer](https://jpcspencer.com) — [@jpcspencer](https://twitter.com/jpcspencer)
-
-*Colony is free during beta. Each run uses real AI compute.*
