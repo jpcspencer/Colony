@@ -985,7 +985,7 @@ const HTML = `<!DOCTYPE html>
         <input type="text" id="goal" placeholder="Enter your research goal..." />
         <button id="launch">Launch Colony</button>
       </div>
-      <p class="beta-disclaimer">Colony is free during beta. Each run uses real AI compute — please be thoughtful with queries.</p>
+      <p class="beta-disclaimer">Colony is in beta. Each run uses real AI compute — please be thoughtful with queries.</p>
       <div id="history-panel" style="display:none; background:var(--terminal-bg); border:1px solid var(--terminal-border); border-radius:4px; margin-bottom:1rem; max-height:200px; overflow-y:auto;"></div>
       <div class="mode-toggle">
         <button class="mode-btn active" id="btn-stream">Stream</button>
