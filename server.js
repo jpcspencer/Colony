@@ -582,6 +582,38 @@ const HTML = `<!DOCTYPE html>
       line-height: 1.8;
       margin-bottom: 0.75rem;
     }
+    .releases-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .release-item {
+      display: flex;
+      gap: 16px;
+      align-items: baseline;
+      opacity: 0.5;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+    }
+    .release-item.active {
+      opacity: 1;
+    }
+    .release-version {
+      color: #c9a96e;
+      min-width: 140px;
+      flex-shrink: 0;
+    }
+    .release-desc {
+      color: #666;
+    }
+    .release-status {
+      color: #4a7c4e;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
     .agent-list {
       display: flex;
       flex-direction: column;
@@ -1077,6 +1109,33 @@ const HTML = `<!DOCTYPE html>
           <p><strong>It argues.</strong> Most research tools find information. Colony stress-tests it. The Critic agent peer-reviews every finding before it reaches the Synthesizer — scoring confidence, flagging weak sources, and sending the colony back in if the evidence doesn't hold up.</p>
           <p><strong>It verifies.</strong> The Verifier fetches every cited URL and checks whether the source actually supports the claim. Dead links and hallucinated attributions get flagged, not buried.</p>
           <p><strong>It remembers.</strong> Every run builds the Atlas — a persistent knowledge graph that compounds across sessions. Future runs on the same domain inherit everything Colony has already learned.</p>
+        </div>
+
+        <div class="system-section">
+          <h3>The Releases</h3>
+          <div class="releases-list">
+            <div class="release-item active">
+              <span class="release-version">v1.0 Nineveh</span>
+              <span class="release-desc">the foundation. six agents, persistent Atlas, private Codex.</span>
+              <span class="release-status">live</span>
+            </div>
+            <div class="release-item">
+              <span class="release-version">v1.1 Alexandria</span>
+              <span class="release-desc">deeper, faster.</span>
+            </div>
+            <div class="release-item">
+              <span class="release-version">v1.2 Pergamon</span>
+              <span class="release-desc">sustainable.</span>
+            </div>
+            <div class="release-item">
+              <span class="release-version">v1.3 Nalanda</span>
+              <span class="release-desc">autonomous.</span>
+            </div>
+            <div class="release-item">
+              <span class="release-version">v2.0 Babylon</span>
+              <span class="release-desc">institutional.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
