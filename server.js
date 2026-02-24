@@ -309,6 +309,7 @@ const HTML = `<!DOCTYPE html>
     .nav-link {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 0.75rem;
+      font-weight: 400;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--text-muted);
@@ -319,21 +320,33 @@ const HTML = `<!DOCTYPE html>
       transition: color 0.2s;
       text-decoration: none;
     }
+    a.nav-link, a.nav-link:link, a.nav-link:visited {
+      font-weight: 400;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    a.nav-link.active {
+      color: var(--accent);
+    }
     .nav-link:hover, .nav-link.active {
       color: var(--accent);
       filter: none;
     }
-    .theme-toggle {
+    #theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 24px;
       background: none;
       border: none;
-      color: #666;
+      color: #444;
       cursor: pointer;
       padding: 4px;
       display: flex;
       align-items: center;
       transition: color 0.2s;
+      z-index: 100;
     }
-    .theme-toggle:hover {
+    #theme-toggle:hover {
       color: #c9a96e;
     }
     #history-btn {
@@ -962,19 +975,6 @@ const HTML = `<!DOCTYPE html>
         <button class="nav-link" id="nav-atlas">Atlas</button>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
-        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-        </button>
         <button class="nav-link" id="nav-signin">Sign In</button>
         <div class="nav-user-wrap" id="nav-user-wrap" style="display:none; position:relative">
           <span class="nav-user" id="nav-user" style="cursor:pointer"></span>
@@ -2158,6 +2158,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
   </script>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  </button>
   <div id="live-clock" style="
     position: fixed;
     top: 1.5rem;
