@@ -317,26 +317,30 @@ const HTML = `<!DOCTYPE html>
       border: none;
       padding: 0;
       transition: color 0.2s;
+      text-decoration: none;
     }
     .nav-link:hover, .nav-link.active {
       color: var(--accent);
       filter: none;
     }
     .theme-toggle {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      cursor: pointer;
       background: none;
-      border: 1px solid var(--terminal-border);
-      border-radius: 3px;
-      padding: 0.25rem 0.6rem;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s;
     }
     .theme-toggle:hover {
-      color: var(--text);
-      filter: none;
+      color: #c9a96e;
+    }
+    #history-btn {
+      border: 1px solid var(--terminal-border);
+      border-radius: 3px;
+      padding: 0.75rem;
+      font-size: 1rem;
     }
     .page-view {
       display: none;
@@ -954,10 +958,23 @@ const HTML = `<!DOCTYPE html>
         <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
       <div class="nav-links">
+        <a href="#" class="nav-link active" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
         <button class="nav-link" id="nav-atlas">Atlas</button>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
-        <button class="theme-toggle" id="theme-toggle">Light</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
         <button class="nav-link" id="nav-signin">Sign In</button>
         <div class="nav-user-wrap" id="nav-user-wrap" style="display:none; position:relative">
           <span class="nav-user" id="nav-user" style="cursor:pointer"></span>
@@ -1548,6 +1565,7 @@ const views = {
 };
 
 const navLinks = {
+  main: document.getElementById('nav-research'),
   atlas: document.getElementById('nav-atlas'),
   codex: document.getElementById('nav-codex'),
   system: document.getElementById('nav-system')
@@ -1567,17 +1585,15 @@ document.getElementById('nav-atlas').addEventListener('click', () => showView('a
 document.getElementById('nav-codex').addEventListener('click', () => showView('codex'));
 document.getElementById('nav-system').addEventListener('click', () => showView('system'));
 
-document.querySelector('h1').addEventListener('click', () => showView('main'));
+document.querySelector('h1').addEventListener('click', () => window.location.href = '/');
 document.querySelector('h1').style.cursor = 'pointer';
 
 // ── Theme toggle ──────────────────────────────────────────────
-const themeBtn = document.getElementById('theme-toggle');
 let isLight = false;
-themeBtn.addEventListener('click', () => {
+function toggleTheme() {
   isLight = !isLight;
   document.body.classList.toggle('light', isLight);
-  themeBtn.textContent = isLight ? 'Dark' : 'Light';
-});
+}
 
 // ── Atlas ─────────────────────────────────────────────────────
 const AGENT_CSS_MAP = {
