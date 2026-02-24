@@ -171,8 +171,10 @@ Produce a final synthesis that:
   console.log('─'.repeat(60));
   console.log(synthesisText);
   console.log('─'.repeat(60));
-  console.log(`\n📊 Total iterations: ${iterationCount}`);
-  console.log(`🧠 Threads in memory: ${colonyMemory.length}`);
+  console.log('\n' + '─'.repeat(60));
+  console.log('✦ colony run complete');
+  console.log(`  ${iterationCount} iterations  ·  ${colonyMemory.length} threads  ·  synthesis saved to codex`);
+  console.log('─'.repeat(60));
 
   const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '-');
   const outputDir = path.join(process.cwd(), 'outputs');
@@ -193,7 +195,6 @@ Produce a final synthesis that:
 ${synthesisText}
 `;
   fs.writeFileSync(outputPath, outputContent, 'utf8');
-  console.log(`\n📁 Synthesis saved to ${outputPath}`);
 
   await saveSynthesis(goal, synthesisText, colonyMemory.length, userId || null, defaultPublic).catch(err => console.error('Synthesis DB save error:', err));
 }
