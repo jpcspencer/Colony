@@ -1073,9 +1073,10 @@ const HTML = `<!DOCTYPE html>
         </div>
 
         <div class="system-section">
-          <h3>The Defensible Moat</h3>
-          <p>Colony's knowledge graph accumulates across every session. Each run builds on everything Colony has ever learned about a domain. This compounding structure — adversarial research that never forgets — is not replicable by spinning up a competitor overnight.</p>
-          <p>Built by Jordan Spencer (@0xJozen) · February 2026</p>
+          <h3>Why Colony?</h3>
+          <p><strong>It argues.</strong> Most research tools find information. Colony stress-tests it. The Critic agent peer-reviews every finding before it reaches the Synthesizer — scoring confidence, flagging weak sources, and sending the colony back in if the evidence doesn't hold up.</p>
+          <p><strong>It verifies.</strong> The Verifier fetches every cited URL and checks whether the source actually supports the claim. Dead links and hallucinated attributions get flagged, not buried.</p>
+          <p><strong>It remembers.</strong> Every run builds the Atlas — a persistent knowledge graph that compounds across sessions. Future runs on the same domain inherit everything Colony has already learned.</p>
         </div>
       </div>
     </div>
