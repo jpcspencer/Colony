@@ -963,7 +963,7 @@ const HTML = `<!DOCTYPE html>
         <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
       <div class="nav-links">
-        <a href="#" class="nav-link active" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
+        <button class="nav-link active" id="nav-research">QUERY</button>
         <button class="nav-link" id="nav-atlas">Atlas</button>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
@@ -1573,6 +1573,7 @@ function showView(name) {
   if (name === 'settings' && typeof window.loadSettings === 'function') window.loadSettings();
 }
 
+document.getElementById('nav-research').addEventListener('click', () => showView('main'));
 document.getElementById('nav-atlas').addEventListener('click', () => showView('atlas'));
 document.getElementById('nav-codex').addEventListener('click', () => showView('codex'));
 document.getElementById('nav-system').addEventListener('click', () => showView('system'));
