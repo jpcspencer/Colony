@@ -307,12 +307,12 @@ const HTML = `<!DOCTYPE html>
       align-items: center;
     }
     .nav-link {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px;
       font-weight: 500;
-      letter-spacing: 0.15em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: #666;
+      color: #8a7a5a;
       text-decoration: none;
       cursor: pointer;
       background: none;
