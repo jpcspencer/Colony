@@ -6,7 +6,7 @@ const { XMLParser } = require('fast-xml-parser');
 async function braveSearch(thread, goal) {
   const apiKey = process.env.BRAVE_API_KEY;
   if (!apiKey) {
-    console.log('⚠️  [EXPLORER] BRAVE_API_KEY not set — skipping web search');
+    console.log('· web search unavailable — no api key configured');
     return null;
   }
 
@@ -33,7 +33,7 @@ async function braveSearch(thread, goal) {
       url: r.url ?? '',
     }));
   } catch (err) {
-    console.log(`⚠️  [EXPLORER] Brave search failed: ${err.message} — falling back to training knowledge`);
+    console.log('· web search failed — falling back to training knowledge');
     return null;
   }
 }
@@ -78,7 +78,7 @@ async function arxivSearch(thread, goal) {
       };
     });
   } catch (err) {
-    console.log(`⚠️  [EXPLORER] arXiv search failed: ${err.message} — skipping academic papers`);
+    console.log('· arxiv unavailable — falling back to semantic scholar');
     return [];
   }
 }
@@ -93,7 +93,7 @@ async function semanticScholarSearch(thread, goal) {
     });
     if (!response.ok) {
       if (response.status === 429) {
-        console.log(`⏳ [EXPLORER] Semantic Scholar rate limited — retrying in 3s`);
+        console.log('· semantic scholar rate limited — retrying shortly');
         await new Promise(resolve => setTimeout(resolve, 3000));
         const retry = await fetch(url, { headers: { 'User-Agent': 'Colony-Research-Agent/0.5' } });
         if (!retry.ok) throw new Error(`Semantic Scholar retry failed: ${retry.status}`);
@@ -119,7 +119,7 @@ async function semanticScholarSearch(thread, goal) {
       year: p.year ?? ''
     }));
   } catch (err) {
-    console.log(`⚠️  [EXPLORER] Semantic Scholar search failed: ${err.message}`);
+    console.log('· semantic scholar search failed — no papers returned');
     return [];
   }
 }
@@ -157,10 +157,10 @@ async function explorer(thread, goal, memory, client, priorFindings = []) {
   ]);
 
   if (!arxivResult || arxivResult.length === 0) {
-    console.log(`📚 [EXPLORER] arXiv returned no results — falling back to Semantic Scholar`);
+    console.log('· arxiv returned no results — using semantic scholar');
     arxivPapers = await semanticScholarSearch(thread, goal);
     if (arxivPapers.length > 0) {
-      console.log(`📚 [EXPLORER] Semantic Scholar returned ${arxivPapers.length} paper(s)`);
+      console.log(`· semantic scholar returned ${arxivPapers.length} paper(s)`);
     }
   } else {
     arxivPapers = arxivResult;
