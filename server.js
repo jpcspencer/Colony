@@ -308,29 +308,20 @@ const HTML = `<!DOCTYPE html>
     }
     .nav-link {
       font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.75rem;
-      font-weight: 400;
+      font-size: 11px;
+      font-weight: 500;
       letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: var(--text-muted);
+      color: #666;
+      text-decoration: none;
       cursor: pointer;
       background: none;
       border: none;
       padding: 0;
       transition: color 0.2s;
-      text-decoration: none;
     }
-    a.nav-link, a.nav-link:link, a.nav-link:visited {
-      font-weight: 400;
-      color: var(--text-muted);
-      text-decoration: none;
-    }
-    a.nav-link.active {
-      color: var(--accent);
-    }
-    .nav-link:hover, .nav-link.active {
-      color: var(--accent);
-      filter: none;
+    .nav-link:hover, .nav-link.active-nav {
+      color: #c9a96e;
     }
     #theme-toggle {
       position: fixed;
@@ -971,7 +962,7 @@ const HTML = `<!DOCTYPE html>
         <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
       <div class="nav-links">
-        <a href="#" class="nav-link active" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
+        <a href="#" class="nav-link active-nav" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
         <button class="nav-link" id="nav-atlas">Atlas</button>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
@@ -1573,9 +1564,9 @@ const navLinks = {
 
 function showView(name) {
   Object.values(views).forEach(v => v && v.classList.remove('active'));
-  Object.values(navLinks).forEach(l => l && l.classList.remove('active'));
+  Object.values(navLinks).forEach(l => l && l.classList.remove('active-nav'));
   if (views[name]) views[name].classList.add('active');
-  if (navLinks[name]) navLinks[name].classList.add('active');
+  if (navLinks[name]) navLinks[name].classList.add('active-nav');
   if (name === 'atlas') loadAtlas();
   if (name === 'codex') switchCodex('public');
   if (name === 'settings' && typeof window.loadSettings === 'function') window.loadSettings();
