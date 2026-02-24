@@ -307,40 +307,41 @@ const HTML = `<!DOCTYPE html>
       align-items: center;
     }
     .nav-link {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.12em;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: #8a7a5a;
-      text-decoration: none;
+      color: var(--text-muted);
       cursor: pointer;
       background: none;
       border: none;
       padding: 0;
       transition: color 0.2s;
     }
-    .nav-link:hover, .nav-link.active-nav {
-      color: #c9a96e;
+    .nav-link:hover, .nav-link.active {
+      color: var(--accent);
+      filter: none;
     }
-    #theme-toggle {
-      position: fixed;
-      top: 20px;
-      right: 24px;
+    .theme-toggle {
       background: none;
       border: none;
-      color: #444;
+      color: var(--text-muted);
       cursor: pointer;
       padding: 4px;
       display: flex;
       align-items: center;
       transition: color 0.2s;
+      position: fixed;
+      top: 20px;
+      right: 24px;
       z-index: 100;
     }
-    #theme-toggle:hover {
-      color: #c9a96e;
+    .theme-toggle:hover {
+      color: var(--accent);
+      filter: none;
     }
     #history-btn {
+      position: static;
       border: 1px solid var(--terminal-border);
       border-radius: 3px;
       padding: 0.75rem;
@@ -962,7 +963,7 @@ const HTML = `<!DOCTYPE html>
         <p class="subtitle">Recursive research engine — map a goal into threads, explore, critique, synthesize</p>
       </div>
       <div class="nav-links">
-        <a href="#" class="nav-link active-nav" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
+        <a href="#" class="nav-link active" id="nav-research" onclick="event.preventDefault(); showView('main');">QUERY</a>
         <button class="nav-link" id="nav-atlas">Atlas</button>
         <button class="nav-link" id="nav-codex">Codex</button>
         <button class="nav-link" id="nav-system">System</button>
@@ -1564,9 +1565,9 @@ const navLinks = {
 
 function showView(name) {
   Object.values(views).forEach(v => v && v.classList.remove('active'));
-  Object.values(navLinks).forEach(l => l && l.classList.remove('active-nav'));
+  Object.values(navLinks).forEach(l => l && l.classList.remove('active'));
   if (views[name]) views[name].classList.add('active');
-  if (navLinks[name]) navLinks[name].classList.add('active-nav');
+  if (navLinks[name]) navLinks[name].classList.add('active');
   if (name === 'atlas') loadAtlas();
   if (name === 'codex') switchCodex('public');
   if (name === 'settings' && typeof window.loadSettings === 'function') window.loadSettings();
