@@ -1183,7 +1183,7 @@ const HTML = `<!DOCTYPE html>
           <div class="settings-account-row"><span class="settings-account-label">Email</span><span id="settings-email">—</span></div>
           <div class="settings-account-row"><span class="settings-account-label">Verified</span><span id="settings-verified-value">—</span></div>
           <div id="settings-resend-verify-wrap" style="display:none; margin-top: 0.5rem; margin-left: 80px">
-            <button type="button" id="settings-resend-verify" style="background:transparent;border:1px solid #333;color:#9a958a;font-family:inherit;font-size:0.75rem;padding:4px 12px;cursor:pointer">Resend verification email</button>
+            <button type="button" id="settings-resend-verify" style="background:transparent;border:1px solid #333;color:#9a958a;font-family:inherit;font-size:0.75rem;padding:4px 12px;cursor:pointer;transition:opacity 0.2s,color 0.2s">Resend verification email</button>
             <span id="settings-verify-msg" style="margin-left: 0.5rem; font-size: 0.75rem;"></span>
           </div>
         </div>
@@ -2002,6 +2002,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('auth-subtitle').textContent = isLogin ? 'Continue your research' : 'Begin your research';
     document.getElementById('auth-submit').textContent = isLogin ? 'Sign in' : 'Create account';
     document.getElementById('auth-switch-link').textContent = isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in';
+    document.getElementById('auth-email-label').textContent = isLogin ? 'Username or email' : 'Email';
+    document.getElementById('auth-email').placeholder = isLogin ? 'Username or email' : 'Email';
     document.getElementById('auth-error').textContent = '';
     document.getElementById('username-field').style.display = authMode === 'signup' ? 'block' : 'none';
   });
@@ -2164,8 +2166,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('settings-resend-verify')?.addEventListener('click', async () => {
+    const btn = document.getElementById('settings-resend-verify');
     const msgEl = document.getElementById('settings-verify-msg');
-    if (!msgEl) return;
+    if (!btn || !msgEl) return;
+    const originalText = 'Resend verification email';
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
     msgEl.textContent = '';
     msgEl.style.color = '';
     try {
@@ -2175,15 +2181,29 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json();
       if (res.ok) {
-        msgEl.textContent = 'Verification email sent';
-        msgEl.style.color = '#c9a96e';
+        btn.textContent = '✓ Sent';
+        msgEl.textContent = '';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 5000);
       } else {
-        msgEl.textContent = data.error || 'Failed to send';
-        msgEl.style.color = '#b04040';
+        btn.textContent = 'Failed — try again';
+        btn.style.color = '#b04040';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.color = '';
+          btn.disabled = false;
+        }, 3000);
       }
     } catch (_) {
-      msgEl.textContent = 'Connection error';
-      msgEl.style.color = '#b04040';
+      btn.textContent = 'Failed — try again';
+      btn.style.color = '#b04040';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 3000);
     }
   });
 
