@@ -1,8 +1,10 @@
 // server.js — Colony web interface
 
 require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const { marked } = require('marked');
 const { runColony } = require('./src/loop');
 const { connectDB, Finding, Synthesis } = require('./src/db');
@@ -842,9 +844,26 @@ const HTML = `<!DOCTYPE html>
       color: var(--text-muted);
       letter-spacing: 0.05em;
     }
-    .nav-user span {
+    .nav-user span:not(.verified-dot) {
       color: var(--accent);
     }
+    .nav-user { display: inline-flex; align-items: center; gap: 6px; }
+    .verified-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #c9a96e; flex-shrink: 0;
+      animation: verified-pulse 1.5s infinite;
+    }
+    .verified-dot[data-tooltip] {
+      position: relative;
+    }
+    .verified-dot[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 8px);
+      background: #0f0e0c; border: 1px solid #3d3529; font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: #9a958a; padding: 4px 10px; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .verified-dot[data-tooltip]:hover::after { opacity: 1; }
+    @keyframes verified-pulse { from { opacity: 0.5; } to { opacity: 1; } }
         .nav-links { position: relative; }
     .nav-dropdown {
       position: absolute;
@@ -969,7 +988,10 @@ const HTML = `<!DOCTYPE html>
         <button class="nav-link" id="nav-system">System</button>
         <button class="nav-link" id="nav-signin">Sign In</button>
         <div class="nav-user-wrap" id="nav-user-wrap" style="display:none; position:relative">
-          <span class="nav-user" id="nav-user" style="cursor:pointer"></span>
+          <span class="nav-user" id="nav-user" style="cursor:pointer">
+            <span id="nav-user-text"></span>
+            <span id="nav-verified-dot" class="verified-dot" data-tooltip="Email unverified" style="display:none"></span>
+          </span>
           <div class="nav-dropdown" id="nav-dropdown">
             <div class="nav-dropdown-item" id="nav-settings">Settings</div>
             <div class="nav-dropdown-item" id="nav-signout">Sign out</div>
@@ -1921,21 +1943,38 @@ document.addEventListener('DOMContentLoaded', () => {
   let authEmail = localStorage.getItem('colony-email');
   let authUsername = localStorage.getItem('colony-username');
 
-  function updateAuthUI() {
+  let emailVerified = true;
+
+  function updateAuthUI(verified) {
+    if (verified !== undefined) emailVerified = verified;
     const signinBtn = document.getElementById('nav-signin');
     const userWrap = document.getElementById('nav-user-wrap');
-    const userSpan = document.getElementById('nav-user');
+    const userText = document.getElementById('nav-user-text');
+    const verifiedDot = document.getElementById('nav-verified-dot');
     if (authToken && authEmail) {
       signinBtn.style.display = 'none';
       userWrap.style.display = 'block';
-      userSpan.innerHTML = '<span>' + (authUsername || authEmail.split('@')[0]) + '</span>';
+      if (userText) userText.textContent = authUsername || authEmail.split('@')[0];
+      if (verifiedDot) verifiedDot.style.display = emailVerified ? 'none' : 'inline-block';
     } else {
       signinBtn.style.display = 'inline';
       userWrap.style.display = 'none';
+      if (verifiedDot) verifiedDot.style.display = 'none';
     }
   }
 
-  updateAuthUI();
+  (async function initAuth() {
+    updateAuthUI();
+    if (authToken) {
+      try {
+        const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + authToken } });
+        if (res.ok) {
+          const data = await res.json();
+          updateAuthUI(data.emailVerified);
+        }
+      } catch (_) {}
+    }
+  })();
 
   // ── Auth modal ────────────────────────────────────────────────
   const authOverlay = document.getElementById('auth-overlay');
@@ -1994,7 +2033,7 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('colony-email', authEmail);
       if (authUsername) localStorage.setItem('colony-username', authUsername);
       else localStorage.removeItem('colony-username');
-      updateAuthUI();
+      updateAuthUI(data.emailVerified !== undefined ? data.emailVerified : true);
       authOverlay.classList.remove('visible');
     } catch (err) {
       errorEl.textContent = 'Connection error';
@@ -2014,7 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('colony-email');
     localStorage.removeItem('colony-username');
     authDropdown.classList.remove('visible');
-    updateAuthUI();
+    updateAuthUI(true);
   });
 
   document.getElementById('nav-settings').addEventListener('click', () => {
@@ -2035,6 +2074,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       document.getElementById('settings-username').textContent = data.username || '—';
       document.getElementById('settings-email').textContent = data.email || '—';
+      if (typeof data.emailVerified !== 'undefined') updateAuthUI(data.emailVerified);
       const toggle = document.getElementById('settings-visibility-toggle');
       toggle.querySelectorAll('.settings-toggle-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === String(!!data.defaultPublic));
@@ -2274,6 +2314,72 @@ function synthesisPageHTML(opts) {
 </body>
 </html>`;
 }
+
+const VERIFY_EMAIL_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email — Colony</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='8' fill='%230a0a0a'/><text x='50' y='54' font-size='68' font-family='Georgia,serif' fill='%238b7355' text-anchor='middle' dominant-baseline='middle'>C</text></svg>">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a0a0a; color: #e8e4d9; font-family: 'IBM Plex Mono', monospace; font-size: 16px; line-height: 1.9; padding: 48px 24px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .verify-wrap { max-width: 480px; text-align: center; }
+    .verify-logo { font-family: 'Cormorant Garamond', serif; font-size: 24px; color: #c9a96e; margin-bottom: 48px; }
+    .verify-logo a { color: inherit; text-decoration: none; }
+    .verify-logo a:hover { text-decoration: underline; }
+    .verify-msg { font-size: 1.1rem; color: #9a958a; margin-bottom: 24px; }
+    .verify-msg.success { color: #4a6741; }
+    .verify-msg.error { color: #b04040; }
+    .verify-link { color: #c9a96e; text-decoration: none; font-size: 0.9rem; }
+    .verify-link:hover { text-decoration: underline; }
+    .verify-loading { color: #666; }
+  </style>
+</head>
+<body>
+  <div class="verify-wrap">
+    <div class="verify-logo"><a href="/">Colony</a></div>
+    <div id="verify-status" class="verify-msg verify-loading">Verifying...</div>
+    <a id="verify-back" href="/" class="verify-link" style="display:none">← Back to Colony</a>
+  </div>
+  <script>
+    (async function() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const status = document.getElementById('verify-status');
+      const back = document.getElementById('verify-back');
+      if (!token) {
+        status.textContent = 'Invalid or expired link.';
+        status.classList.add('error');
+        back.style.display = 'inline-block';
+        return;
+      }
+      try {
+        const res = await fetch('/api/verify-email?token=' + encodeURIComponent(token));
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          status.textContent = 'Email verified. Your Colony account is confirmed.';
+          status.classList.remove('verify-loading');
+          status.classList.add('success');
+        } else {
+          status.textContent = data.error || 'Invalid or expired token.';
+          status.classList.remove('verify-loading');
+          status.classList.add('error');
+        }
+      } catch (e) {
+        status.textContent = 'Something went wrong. Please try again.';
+        status.classList.remove('verify-loading');
+        status.classList.add('error');
+      }
+      back.style.display = 'inline-block';
+    })();
+  </script>
+</body>
+</html>`;
 
 const LANDING_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -2624,6 +2730,10 @@ app.get('/app', (req, res) => {
   res.type('html').send(HTML);
 });
 
+app.get('/verify-email', (req, res) => {
+  res.type('html').send(VERIFY_EMAIL_HTML);
+});
+
 app.get('/synthesis/:id', async (req, res) => {
   try {
     const synth = await Synthesis.findById(req.params.id);
@@ -2751,6 +2861,25 @@ app.get('/api/codex/mine', requireAuth, async (req, res) => {
 const User = require('./src/models/user');
 const { signToken, authMiddleware } = require('./src/auth');
 
+async function sendVerificationEmail(email, token) {
+  const host = process.env.EMAIL_HOST;
+  const port = process.env.EMAIL_PORT;
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  const from = process.env.EMAIL_FROM;
+  if (!host || !port || !user || !pass || !from) {
+    console.log('· email verification skipped — SMTP not configured');
+    return;
+  }
+  const transporter = nodemailer.createTransport({ host, port: parseInt(port, 10), secure: port === '465', auth: { user, pass } });
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: 'Verify your Colony account',
+    text: `Click to verify your Colony account: https://usecolony.app/verify-email?token=${token}`
+  });
+}
+
 app.post('/api/signup', async (req, res) => {
   const { email, password, username } = req.body;
   try {
@@ -2759,8 +2888,13 @@ app.post('/api/signup', async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already registered' });
     const user = await User.create({ email, password, username: username || undefined });
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+    sendVerificationEmail(user.email, verificationToken).catch(err => console.error('Verification email failed:', err));
     const token = signToken(user._id);
-    res.json({ token, email: user.email, username: user.username });
+    res.json({ token, email: user.email, username: user.username, emailVerified: false });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: err.message });
@@ -2782,7 +2916,7 @@ app.post('/api/login', async (req, res) => {
     const valid = await user.comparePassword(password);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
     const token = signToken(user._id);
-    res.json({ token, email: user.email, username: user.username });
+    res.json({ token, email: user.email, username: user.username, emailVerified: !!user.emailVerified });
   } catch (err) {
     res.status(500).json({ error: 'Login failed' });
   }
@@ -2790,9 +2924,41 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/me', requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('username email defaultPublic');
+    const user = await User.findById(req.user.userId).select('username email defaultPublic emailVerified');
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ username: user.username, email: user.email, defaultPublic: user.defaultPublic || false });
+    res.json({ username: user.username, email: user.email, defaultPublic: user.defaultPublic || false, emailVerified: !!user.emailVerified });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/verify-email', async (req, res) => {
+  const { token } = req.query;
+  try {
+    if (!token) return res.status(400).json({ error: 'Invalid or expired token' });
+    const user = await User.findOne({ emailVerificationToken: token, emailVerificationExpires: { $gt: new Date() } });
+    if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
+    user.emailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+    res.json({ ok: true, message: 'Email verified' });
+  } catch (e) {
+    res.status(500).json({ error: 'Invalid or expired token' });
+  }
+});
+
+app.post('/api/resend-verification', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.emailVerified) return res.status(400).json({ error: 'Already verified' });
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+    await sendVerificationEmail(user.email, verificationToken);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
