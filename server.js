@@ -2940,7 +2940,15 @@ async function sendVerificationEmail(email, token) {
     console.log('· email verification skipped — SMTP not configured');
     return;
   }
-  const transporter = nodemailer.createTransport({ host, port: parseInt(port, 10), secure: port === '465', auth: { user, pass } });
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT) || 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
   await transporter.sendMail({
     from,
     to: email,
