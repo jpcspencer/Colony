@@ -1181,6 +1181,11 @@ const HTML = `<!DOCTYPE html>
           <div class="settings-section-title">Account Info</div>
           <div class="settings-account-row"><span class="settings-account-label">Username</span><span id="settings-username">—</span></div>
           <div class="settings-account-row"><span class="settings-account-label">Email</span><span id="settings-email">—</span></div>
+          <div class="settings-account-row"><span class="settings-account-label">Verified</span><span id="settings-verified-value">—</span></div>
+          <div id="settings-resend-verify-wrap" style="display:none; margin-top: 0.5rem; margin-left: 80px">
+            <button type="button" id="settings-resend-verify" style="background:transparent;border:1px solid #333;color:#9a958a;font-family:inherit;font-size:0.75rem;padding:4px 12px;cursor:pointer">Resend verification email</button>
+            <span id="settings-verify-msg" style="margin-left: 0.5rem; font-size: 0.75rem;"></span>
+          </div>
         </div>
 
         <div class="settings-section">
@@ -2074,7 +2079,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       document.getElementById('settings-username').textContent = data.username || '—';
       document.getElementById('settings-email').textContent = data.email || '—';
-      if (typeof data.emailVerified !== 'undefined') updateAuthUI(data.emailVerified);
+      const verifiedEl = document.getElementById('settings-verified-value');
+      const resendWrap = document.getElementById('settings-resend-verify-wrap');
+      const verifyMsg = document.getElementById('settings-verify-msg');
+      if (typeof data.emailVerified !== 'undefined') {
+        updateAuthUI(data.emailVerified);
+        if (data.emailVerified) {
+          verifiedEl.textContent = '✓ Verified';
+          verifiedEl.style.color = '#4a6741';
+          if (resendWrap) resendWrap.style.display = 'none';
+        } else {
+          verifiedEl.textContent = '✗ Unverified';
+          verifiedEl.style.color = '#c9a96e';
+          if (resendWrap) resendWrap.style.display = 'block';
+        }
+      } else {
+        verifiedEl.textContent = '—';
+        verifiedEl.style.color = '';
+        if (resendWrap) resendWrap.style.display = 'none';
+      }
+      if (verifyMsg) verifyMsg.textContent = '';
       const toggle = document.getElementById('settings-visibility-toggle');
       toggle.querySelectorAll('.settings-toggle-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === String(!!data.defaultPublic));
@@ -2137,6 +2161,30 @@ document.addEventListener('DOMContentLoaded', () => {
         b.classList.toggle('active', b.dataset.value === String(val));
       });
     } catch (_) {}
+  });
+
+  document.getElementById('settings-resend-verify')?.addEventListener('click', async () => {
+    const msgEl = document.getElementById('settings-verify-msg');
+    if (!msgEl) return;
+    msgEl.textContent = '';
+    msgEl.style.color = '';
+    try {
+      const res = await fetch('/api/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('colony-token') }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msgEl.textContent = 'Verification email sent';
+        msgEl.style.color = '#c9a96e';
+      } else {
+        msgEl.textContent = data.error || 'Failed to send';
+        msgEl.style.color = '#b04040';
+      }
+    } catch (_) {
+      msgEl.textContent = 'Connection error';
+      msgEl.style.color = '#b04040';
+    }
   });
 
   document.getElementById('settings-delete-btn').addEventListener('click', () => {
