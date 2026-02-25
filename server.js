@@ -2060,7 +2060,8 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('colony-email');
     localStorage.removeItem('colony-username');
     authDropdown.classList.remove('visible');
-    updateAuthUI(true);
+    if (typeof switchCodex === 'function') switchCodex('public');
+    window.location.href = '/';
   });
 
   document.getElementById('nav-settings').addEventListener('click', () => {
