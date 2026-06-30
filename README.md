@@ -1,5 +1,7 @@
 # Colony
 
+<img width="1377" height="732" alt="image" src="https://github.com/user-attachments/assets/4144fbfd-f5eb-44b3-ba4d-85789913d0e2" />
+
 ### Research that argues with itself.
 
 Colony is a recursive peer-reviewed AI research platform. Not a chatbot. Not a search engine. A system of six named agents that autonomously explore a research goal, critique each other's findings, verify citations, and synthesize a final report grounded in real sources. Over time, it builds a persistent knowledge graph that compounds across sessions.
